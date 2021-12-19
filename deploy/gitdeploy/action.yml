@@ -1,0 +1,31 @@
+name: 'SquareOne - Git Deploy'
+description: 'Deploy to a Git repository'
+author: 'moderntribe'
+inputs:
+    ssh_private_key:
+      required: true
+      description: SSH Private Key
+    server:
+      required: true
+      description: Host Server SSH
+    app:
+      required: true
+      description: Git Url
+    branch:
+      required: true
+      description: Branch being deployed
+
+runs:
+    using: 'composite'
+    steps:
+      - uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ inputs.ssh_private_key }}
+
+      - name: Deploy to ${{ inputs.app }}
+        shell: bash
+        env:
+          GIT_SSH_COMMAND: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+        run: |
+          git remote add server ${{ inputs.server }}:${{ inputs.app }}
+          git push server ${{ inputs.branch }}:master --force
