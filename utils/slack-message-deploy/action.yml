@@ -5,9 +5,9 @@ inputs:
     webhook_url:
       required: true
       description: Incoming Webhook URL
-    server_url:
+    app_url:
       required: true
-      description: Server URL
+      description: App URL
     message:
       required: true
       description: Slack message
@@ -34,7 +34,7 @@ runs:
                 "fields": [
                   {
                     "title": "Server URL",
-                    "value": "${{ inputs.server_url }}"
+                    "value": "${{ inputs.app_url }}"
                   },
                   {
                     "title": "GitHub Actions URL",

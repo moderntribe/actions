@@ -23,8 +23,7 @@ runs:
 
       - name: Deploy to ${{ inputs.app }}
         shell: bash
-        env:
-          GIT_SSH_COMMAND: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
         run: |
+          ssh-keyscan {{ inputs.server_url }}
           git remote add server ${{ inputs.server }}:${{ inputs.app }}
           git push server ${{ inputs.branch }}:master --force
