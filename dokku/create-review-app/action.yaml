@@ -2,21 +2,21 @@ name: ModernTribe - Create Review App
 description: Create Review App in Dokku Server
 author: moderntribe
 inputs:
-    ssh_private_key:
-      required: true
-      description: SSH Private Key
-    server:
-      required: true
-      description: Server Name
-    server_url:
-      required: true
-      description: Server URL
     app_name:
       required: true
       description: Dokku Original App Name
     review_app_name:
       required: true
       description: Dokku Review App Name
+    server:
+      required: true
+      description: Server Name
+    server_url:
+      required: true
+      description: Server URL
+    ssh_private_key:
+      required: true
+      description: SSH Private Key
     github_pat_token:
       required: true
       description: Github Personal Access token
@@ -34,7 +34,7 @@ runs:
         id: test_app
         shell: bash
         run: |
-          ssh-keyscan {{ inputs.server_url }}
+          ssh-keyscan ${{ inputs.server_url }}
           exists=$(${SSH_COMMAND} dokku@${{ inputs.server_url }} apps:exists ${{ inputs.app_name }} && echo "true" || echo "false")
           echo "##[set-output name=app_exists;]$(echo ${exists})"
 

@@ -24,6 +24,6 @@ runs:
       - name: Deploy to ${{ inputs.app }}
         shell: bash
         run: |
-          ssh-keyscan {{ inputs.server_url }}
+          ssh-keyscan ${{ inputs.server_url }}
           git remote add server ${{ inputs.server }}:${{ inputs.app }}
           git push server ${{ inputs.branch }}:master --force

@@ -2,15 +2,15 @@ name: ModernTribe - Delete Review App
 description: Delete Review App in Dokku Server
 author: moderntribe
 inputs:
-    server:
-      required: true
-      description: Server Name
     app_name:
       required: true
       description: Dokku Original App Name
     review_app_name:
       required: true
       description: Dokku Review App Name
+    server:
+      required: true
+      description: Server Name
     github_pat_token:
       required: true
       description: Github Personal Access token
