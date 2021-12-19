@@ -1,0 +1,55 @@
+name: ModernTribe - Create Review App
+description: Create Review App in Dokku Server
+author: moderntribe
+inputs:
+    ssh_private_key:
+      required: true
+      description: SSH Private Key
+    server:
+      required: true
+      description: Host Server SSH
+    team_server:
+      required: true
+      description: Team Server
+    app:
+      required: true
+      description: Dokku Original App Name
+    review_app:
+      required: true
+      description: Dokku Review App Name
+    github_pat_token:
+      required: true
+      description: Github Personal Access token
+    gha_url:
+      required: true
+      description: Github Actions Run URL
+runs:
+  using: composite
+  steps:
+      - uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ inputs.ssh_private_key }}
+
+      - name: Check if ${{ inputs.app }} already exists
+        id: test_app
+        shell: bash
+        env:
+          SSH_COMMAND: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+        run: |
+          exists=$(${SSH_COMMAND} ${{ inputs.server }} apps:exists ${{ inputs.app }} && echo "true" || echo "false")
+          echo "##[set-output name=app_exists;]$(echo ${exists})"
+
+      - name: Repository Dispatch | Launch ${{ inputs.review_app }}
+        if: steps.test_app.outputs.app_exists == 'false'
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          repository: moderntribe/dokku-ansible
+          event-type: create-review-app
+          token: "${{ inputs.github_pat_token }}"
+          client-payload: |
+            {
+              "review_app_name": "${{ inputs.review_app }}",
+              "app_name": "${{ inputs.app }}",
+              "server": "${{ inputs.team_server }}",
+              "action_url": "${{ inputs.gha_url }}"
+            }
