@@ -1,10 +1,10 @@
-name: 'SquareOne - Slack Message'
+name: 'ModernTribe - Slack Message'
 description: 'Sends message to Slack Webhook.'
 author: 'moderntribe'
 inputs:
     webhook_url:
       required: true
-      description: 'Incoming Webhook URL'
+      description: Incoming Webhook URL
     server_url:
       required: true
       description: Server URL
@@ -24,7 +24,7 @@ runs:
       - name: Slack Message
         uses: tokorom/action-slack-incoming-webhook@main
         env:
-          INCOMING_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          INCOMING_WEBHOOK_URL: ${{ inputs.webhook_url }}
         with:
           text: "${{ inputs.message }}"
           attachments: |

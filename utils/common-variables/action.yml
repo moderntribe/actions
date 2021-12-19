@@ -1,0 +1,23 @@
+name: 'ModernTribe - Set Variables'
+description: 'Sets common environment variables needed for deploys'
+author: 'moderntribe'
+inputs:
+    base_branch:
+      required: true
+      description: Incoming Webhook URL
+runs:
+  using: 'composite'
+  steps:
+      - name: Extract PR branch name
+        id: extract_pr
+        shell: bash
+        env:
+          BASE_BRANCH: ${{ inputs.base_branch }}
+        run: echo "##[set-output name=branch;]$(echo ${BASE_BRANCH#refs/heads/})"
+
+      - name: Set Variables
+        shell: bash
+        run: |
+          echo "REVIEW_APP=${{ env.APPNAME }}-pr${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "GHA_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+          echo "BRANCH=${{ steps.extract_pr.outputs.branch }}" >> $GITHUB_ENV
