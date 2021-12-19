@@ -5,7 +5,6 @@ inputs:
     webhook_url:
       required: true
       description: 'Incoming Webhook URL'
-      default: ${{ secrets.SLACK_WEBHOOK }}
     server_url:
       required: true
       description: Server URL
