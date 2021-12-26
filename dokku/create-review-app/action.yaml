@@ -34,6 +34,7 @@ runs:
         id: test_app
         shell: bash
         run: |
+          ssh -v dokku@${{ inputs.server }} apps:exists ${{ inputs.review_app_name }}
           output=$(ssh dokku@${{ inputs.server }} apps:exists ${{ inputs.review_app_name }} 2>&1)
 
           if [[ "$output" =~ "does not exist" ]] ; then
