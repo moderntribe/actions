@@ -23,17 +23,22 @@ inputs:
 runs:
   using: composite
   steps:
-      - uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ inputs.ssh_private_key }}
+      # - uses: webfactory/ssh-agent@v0.5.3
+      #   with:
+      #     ssh-private-key: ${{ inputs.ssh_private_key }}
 
       - name: Check if ${{ inputs.app_name }} already exists
         id: test_app
         shell: bash
         run: |
-          ssh-keyscan ${{ inputs.server }}
-          exists=$(${SSH_COMMAND} dokku@${{ inputs.server }}.moderntribe.qa apps:exists ${{ inputs.app_name }} && echo "true" || echo "false")
-          echo "##[set-output name=app_exists;]$(echo ${exists})"
+          echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_rsa
+          ssh-keyscan ${{ inputs.server }}  > ~/.ssh/known_hosts
+
+          if ! ssh dokku@${{ inputs.server }} apps:exists ${{ inputs.app_name }} =~ .*"does not exist".*; then
+              echo ::set-output name=app_exists::"false"
+          else
+              echo ::set-output name=app_exists::"true"
+          fi
 
       - name: Repository Dispatch | Launch ${{ inputs.review_app_name }}
         if: steps.test_app.outputs.app_exists == 'false'
