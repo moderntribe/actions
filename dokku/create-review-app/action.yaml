@@ -37,8 +37,10 @@ runs:
           output=$(ssh dokku@${{ inputs.server }} apps:exists ${{ inputs.app_name }} 2>&1)
 
           if [[ "$output" =~ "does not exist" ]] ; then
+            echo "Matched. App does not exists."
             echo ::set-output name=app_exists::"false"
           else
+            echo "App already exists. Skipping creation..."
             echo ::set-output name=app_exists::"true"
           fi
 
