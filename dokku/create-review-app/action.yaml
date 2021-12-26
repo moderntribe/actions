@@ -11,9 +11,6 @@ inputs:
     server:
       required: true
       description: Server Name
-    server_url:
-      required: true
-      description: Server URL
     ssh_private_key:
       required: true
       description: SSH Private Key
@@ -34,8 +31,8 @@ runs:
         id: test_app
         shell: bash
         run: |
-          ssh-keyscan ${{ inputs.server_url }}
-          exists=$(${SSH_COMMAND} dokku@${{ inputs.server_url }} apps:exists ${{ inputs.app_name }} && echo "true" || echo "false")
+          ssh-keyscan ${{ inputs.server }}
+          exists=$(${SSH_COMMAND} dokku@${{ inputs.server }}.moderntribe.qa apps:exists ${{ inputs.app_name }} && echo "true" || echo "false")
           echo "##[set-output name=app_exists;]$(echo ${exists})"
 
       - name: Repository Dispatch | Launch ${{ inputs.review_app_name }}

@@ -5,10 +5,7 @@ inputs:
     ssh_private_key:
       required: true
       description: SSH Private Key
-    server:
-      required: true
-      description: Host Server SSH
-    app:
+    git_url:
       required: true
       description: Git Url
     branch:
@@ -23,7 +20,8 @@ runs:
 
       - name: Deploy to ${{ inputs.app }}
         shell: bash
+        env:
+          GIT_SSH_COMMAND: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
         run: |
-          ssh-keyscan ${{ inputs.server_url }}
-          git remote add server ${{ inputs.server }}:${{ inputs.app }}
+          git remote add server ${{ inputs.git_url }}
           git push server ${{ inputs.branch }}:master --force

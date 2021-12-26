@@ -21,7 +21,6 @@ runs:
   using: composite
   steps:
       - name: Repository Dispatch | Delete ${{ inputs.review_app_name }}
-        if: steps.test_app.outputs.app_exists == 'false'
         uses: peter-evans/repository-dispatch@v1
         with:
           repository: moderntribe/dokku-ansible
