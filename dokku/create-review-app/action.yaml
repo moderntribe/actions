@@ -23,17 +23,17 @@ inputs:
 runs:
   using: composite
   steps:
-      # - uses: webfactory/ssh-agent@v0.5.3
-      #   with:
-      #     ssh-private-key: ${{ inputs.ssh_private_key }}
+      - name: Write SSH keys
+        shell: bash
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ inputs.server }} > ~/.ssh/known_hosts
 
       - name: Check if ${{ inputs.app_name }} already exists
         id: test_app
         shell: bash
         run: |
-          echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_rsa
-          ssh-keyscan ${{ inputs.server }}  > ~/.ssh/known_hosts
-
           if ! ssh dokku@${{ inputs.server }} apps:exists ${{ inputs.app_name }} =~ .*"does not exist".*; then
               echo ::set-output name=app_exists::"false"
           else
