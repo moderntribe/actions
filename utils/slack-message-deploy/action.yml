@@ -67,7 +67,7 @@ runs:
             {
                 "icon_emoji": ":rocket:",
                 "username": "Deploy - SquareOne",
-                "text": ":x: Failed Deployment to ${{ inputs.environment }}  "
+                "text": ":x: Failed Deployment to ${{ inputs.environment }}",
                 "attachments": [
                     {
                       "color": "bad",
@@ -96,7 +96,7 @@ runs:
             {
                 "icon_emoji": ":rocket:",
                 "username": "Deploy - SquareOne",
-                "text": ":x: Canceled Deployment to ${{ inputs.environment }}"
+                "text": ":x: Canceled Deployment to ${{ inputs.environment }}",
                 "attachments": [
                     {
                       "color": "bad",

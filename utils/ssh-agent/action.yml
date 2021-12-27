@@ -14,7 +14,7 @@ runs:
       - name: Add SSH key
         shell: bash
         env:
-            SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         run: |
             mkdir -p /home/runner/.ssh
             install -m 600 -D /dev/null /home/runner/.ssh/id_rsa

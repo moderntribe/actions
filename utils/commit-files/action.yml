@@ -14,4 +14,4 @@ runs:
         git config --global user.name "github actions modern tribe"
         git config --global user.email "devops@tri.be"
         git add  ${{ inputs.folder }} --force
-        git commit --allow-empty -m "Commiting files"
+        git commit --allow-empty -m "Commiting Deploy files"
