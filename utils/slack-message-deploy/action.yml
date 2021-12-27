@@ -39,23 +39,50 @@ runs:
                 "icon_emoji": ":rocket:",
                 "username": "Deploy - SquareOne",
                 "text": ":white_check_mark: Successful Deployment branch `${{ inputs.branch }}` to *${{ inputs.environment }}*",
-                "attachments": [
+                "blocks": [
                     {
-                      "color": "good",
-                      "title_link": "${{ inputs.app_url }}",
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "Successful Deployment branch `${{ inputs.branch }}` to *${{ inputs.environment }}*"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "block_id": "section567",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "Server URL <${{ inputs.app_url }}|here>"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "block_id": "section789",
                       "fields": [
                         {
-                          "title": "Server URL",
-                          "value": "${{ inputs.app_url }}"
-                        },
-                        {
-                          "title": "GitHub Actions URL",
-                          "value": "${{ inputs.gha_url }}"
+                          "type": "mrkdwn",
+                          "text": "GitHub Actions URL <${{ inputs.gha_url }}|here> "
                         }
                       ]
                     }
-                ]
-            }
+                  ],
+                  "attachments": [
+                      {
+                        "color": "good",
+                        "title_link": "${{ inputs.app_url }}",
+                        "fields": [
+                          {
+                            "title": "Server URL",
+                            "value": "${{ inputs.app_url }}"
+                          },
+                          {
+                            "title": "GitHub Actions URL",
+                            "value": "${{ inputs.gha_url }}"
+                          }
+                        ]
+                      }
+                  ]
+              }
 
 
       - name: Slack Failure Notification
