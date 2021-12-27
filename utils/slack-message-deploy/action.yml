@@ -32,6 +32,7 @@ runs:
         if: ${{ inputs.status == 'success' }}
         env:
           SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
           payload: >-
             {
@@ -62,6 +63,7 @@ runs:
         if: ${{ inputs.status == 'failure' }}
         env:
           SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
           payload: >-
             {
@@ -91,6 +93,7 @@ runs:
         if: ${{ inputs.status == 'cancelled' }}
         env:
           SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
           payload: >-
             {
