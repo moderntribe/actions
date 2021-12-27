@@ -1,0 +1,29 @@
+name: 'ModernTribe - SSH Agent'
+description: 'Setup SSH Agent'
+author: 'moderntribe'
+inputs:
+    ssh_private_key:
+      required: true
+      description: SSH Private Key
+    server:
+      required: false
+      description: Server
+runs:
+    using: 'composite'
+    steps:
+      - name: Add SSH key
+        shell: bash
+        env:
+            SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: |
+            mkdir -p /home/runner/.ssh
+            install -m 600 -D /dev/null /home/runner/.ssh/id_rsa
+            echo "${{ inputs.ssh_private_key }}" > /home/runner/.ssh/id_rsa
+            ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+            ssh-add /home/runner/.ssh/id_rsa
+
+      - name: Add server to knownhosts
+        if: ${{ inputs.server != '' }}
+        shell: bash
+        run: |
+          ssh-keyscan -H ${{ inputs.server }} > /home/runner/.ssh/known_hosts
