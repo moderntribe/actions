@@ -2,44 +2,115 @@ name: 'ModernTribe - Slack Message'
 description: 'Sends message to Slack Webhook.'
 author: 'moderntribe'
 inputs:
-    webhook_url:
+    branch:
+      required: true
+      description: Branch being deployed
+    environment:
+      required: true
+      description: Environment
+    slack_webhook_url:
       required: true
       description: Incoming Webhook URL
+    status:
+      required: true
+      description: Job Status
     app_url:
       required: true
       description: App URL
-    message:
-      required: true
-      description: Slack message
     gha_url:
       required: true
       description: Github Actions Run URL
-    color:
-      required: true
-      description: Slack Message Color
 
 runs:
     using: 'composite'
     steps:
-      - name: Slack Message
-        uses: tokorom/action-slack-incoming-webhook@main
+      - shell: bash
+        run: echo "Status=${{ inputs.status }}"
+
+      - name: Slack Success Notification
+        uses: slackapi/slack-github-action@v1.14.0
+        if: ${{ inputs.status == 'success' }}
         env:
-          INCOMING_WEBHOOK_URL: ${{ inputs.webhook_url }}
+          SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
         with:
-          text: "${{ inputs.message }}"
-          attachments: |
-            [
-              {
-                "color": "${{ inputs.color }}",
-                "fields": [
-                  {
-                    "title": "Server URL",
-                    "value": "${{ inputs.app_url }}"
-                  },
-                  {
-                    "title": "GitHub Actions URL",
-                    "value": "${{ inputs.gha_url }}"
-                  }
+          payload: >-
+            {
+                "icon_emoji": ":rocket:",
+                "username": "Deploy - SquareOne",
+                "text": ":white_check_mark: Successful Deployment branch `${{ inputs.branch }}` to *${{ inputs.environment }}*",
+                "attachments": [
+                    {
+                      "color": "good",
+                      "title_link": "${{ inputs.app_url }}",
+                      "fields": [
+                        {
+                          "title": "Server URL",
+                          "value": "${{ inputs.app_url }}"
+                        },
+                        {
+                          "title": "GitHub Actions URL",
+                          "value": "${{ inputs.gha_url }}"
+                        }
+                      ]
+                    }
                 ]
-              }
-            ]
+            }
+
+
+      - name: Slack Failure Notification
+        uses: slackapi/slack-github-action@v1.14.0
+        if: ${{ inputs.status == 'failure' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+        with:
+          payload: >-
+            {
+                "icon_emoji": ":rocket:",
+                "username": "Deploy - SquareOne",
+                "text": ":x: Failed Deployment to ${{ inputs.environment }}  "
+                "attachments": [
+                    {
+                      "color": "bad",
+                      "title_link": "${{ inputs.app_url }}",
+                      "fields": [
+                        {
+                          "title": "Server URL",
+                          "value": "${{ inputs.app_url }}"
+                        },
+                        {
+                          "title": "GitHub Actions URL",
+                          "value": "${{ inputs.gha_url }}"
+                        }
+                      ]
+                    }
+                ]
+            }
+
+      - name: Slack Cancel Notification
+        uses: slackapi/slack-github-action@v1.14.0
+        if: ${{ inputs.status == 'cancelled' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+        with:
+          payload: >-
+            {
+                "icon_emoji": ":rocket:",
+                "username": "Deploy - SquareOne",
+                "text": ":x: Canceled Deployment to ${{ inputs.environment }}"
+                "attachments": [
+                    {
+                      "color": "bad",
+                      "title_link": "${{ inputs.app_url }}",
+                      "fields": [
+                        {
+                          "title": "Server URL",
+                          "value": "${{ inputs.app_url }}"
+                        },
+                        {
+                          "title": "GitHub Actions URL",
+                          "value": "${{ inputs.gha_url }}"
+                        }
+                      ]
+                    }
+                ]
+            }
