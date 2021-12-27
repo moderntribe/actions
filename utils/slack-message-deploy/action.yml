@@ -39,23 +39,20 @@ runs:
               "icon_emoji": ":rocket:",
               "username": "Deploy - SquareOne",
               "text": ":white_check_mark: Successful Deployment branch `${{ inputs.branch }}` to *${{ inputs.environment }}*",
-              "attachments": [
+              "attachments": [{
+                "color": "good",
+                "title_link": "${{ inputs.app_url }}",
+                "fields": [{
+                    "title": "Server URL",
+                    "value": "${{ inputs.app_url }}"
+                  },
                   {
-                    "color": "good",
-                    "title_link": "${{ inputs.app_url }}",
-                    "fields": [
-                      {
-                        "title": "Server URL",
-                        "value": "${{ inputs.app_url }}"
-                      },
-                      {
-                        "title": "GitHub Actions URL",
-                        "value": "${{ inputs.gha_url }}"
-                      }
-                    ]
+                    "title": "GitHub Actions URL",
+                    "value": "${{ inputs.gha_url }}"
                   }
                 ]
-              }
+              }]
+            }
 
 
       - name: Slack Failure Notification
@@ -67,25 +64,22 @@ runs:
         with:
           payload: |
             {
-                "icon_emoji": ":rocket:",
-                "username": "Deploy - SquareOne",
-                "text": ":x: Failed Deployment to ${{ inputs.environment }}",
-                "attachments": [
-                    {
-                      "color": "bad",
-                      "title_link": "${{ inputs.app_url }}",
-                      "fields": [
-                        {
-                          "title": "Server URL",
-                          "value": "${{ inputs.app_url }}"
-                        },
-                        {
-                          "title": "GitHub Actions URL",
-                          "value": "${{ inputs.gha_url }}"
-                        }
-                      ]
-                    }
+              "icon_emoji": ":rocket:",
+              "username": "Deploy - SquareOne",
+              "text": ":x: Failed Deployment to ${{ inputs.environment }}",
+              "attachments": [{
+                "color": "bad",
+                "title_link": "${{ inputs.app_url }}",
+                "fields": [{
+                    "title": "Server URL",
+                    "value": "${{ inputs.app_url }}"
+                  },
+                  {
+                    "title": "GitHub Actions URL",
+                    "value": "${{ inputs.gha_url }}"
+                  }
                 ]
+              }]
             }
 
       - name: Slack Cancel Notification
@@ -97,23 +91,20 @@ runs:
         with:
           payload: |
             {
-                "icon_emoji": ":rocket:",
-                "username": "Deploy - SquareOne",
-                "text": ":x: Canceled Deployment to ${{ inputs.environment }}",
-                "attachments": [
-                    {
-                      "color": "bad",
-                      "title_link": "${{ inputs.app_url }}",
-                      "fields": [
-                        {
-                          "title": "Server URL",
-                          "value": "${{ inputs.app_url }}"
-                        },
-                        {
-                          "title": "GitHub Actions URL",
-                          "value": "${{ inputs.gha_url }}"
-                        }
-                      ]
-                    }
+              "icon_emoji": ":rocket:",
+              "username": "Deploy - SquareOne",
+              "text": ":x: Canceled Deployment to ${{ inputs.environment }}",
+              "attachments": [{
+                "color": "bad",
+                "title_link": "${{ inputs.app_url }}",
+                "fields": [{
+                    "title": "Server URL",
+                    "value": "${{ inputs.app_url }}"
+                  },
+                  {
+                    "title": "GitHub Actions URL",
+                    "value": "${{ inputs.gha_url }}"
+                  }
                 ]
+              }]
             }
