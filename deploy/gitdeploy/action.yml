@@ -13,8 +13,6 @@ runs:
     steps:
       - name: Deploy to ${{ inputs.app }}
         shell: bash
-        env:
-          GIT_SSH_COMMAND: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
         run: |
-          git remote add server ${{ inputs.git_url }}
-          git push server ${{ inputs.branch }}:master --force
+          git remote add deploy_server ${{ inputs.git_url }}
+          git push deploy_server ${{ inputs.branch }}:master --force
