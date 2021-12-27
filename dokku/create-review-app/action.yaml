@@ -34,7 +34,7 @@ runs:
         id: test_app
         shell: bash
         run: |
-          output=$(ssh -i ~/.ssh/id_rsa dokku@${{ inputs.server }} apps:exists ${{ inputs.review_app_name }} 2>&1)
+          output=$(ssh -i ~/.ssh/id_rsa dokku@${{ inputs.server }} apps:exists ${{ inputs.review_app_name }} 2>&1 || true)
 
           if [[ "$output" =~ "does not exist" ]] ; then
             echo "Matched. App does not exists."
