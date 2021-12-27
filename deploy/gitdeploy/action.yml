@@ -2,9 +2,6 @@ name: 'ModernTribe - Git Deploy'
 description: 'Deploy to a Git repository'
 author: 'moderntribe'
 inputs:
-    ssh_private_key:
-      required: true
-      description: SSH Private Key
     git_url:
       required: true
       description: Git Url
@@ -14,10 +11,6 @@ inputs:
 runs:
     using: 'composite'
     steps:
-      - uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ inputs.ssh_private_key }}
-
       - name: Deploy to ${{ inputs.app }}
         shell: bash
         env:
