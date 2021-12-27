@@ -37,7 +37,7 @@ runs:
           payload: |
             {
               "icon_emoji": ":rocket:",
-              "username": "Deploy - SquareOne",
+              "username": "GHA Deploy Bot",
               "text": ":white_check_mark: Successful Deployment branch `${{ inputs.branch }}` to *${{ inputs.environment }}*",
               "attachments": [{
                 "color": "good",
@@ -65,7 +65,7 @@ runs:
           payload: |
             {
               "icon_emoji": ":rocket:",
-              "username": "Deploy - SquareOne",
+              "username": "GHA Deploy Bot",
               "text": ":x: Failed Deployment to ${{ inputs.environment }}",
               "attachments": [{
                 "color": "bad",
@@ -92,7 +92,7 @@ runs:
           payload: |
             {
               "icon_emoji": ":rocket:",
-              "username": "Deploy - SquareOne",
+              "username": "GHA Deploy Bot",
               "text": ":x: Canceled Deployment to ${{ inputs.environment }}",
               "attachments": [{
                 "color": "bad",
