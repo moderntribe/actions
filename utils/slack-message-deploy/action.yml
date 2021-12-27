@@ -34,7 +34,7 @@ runs:
           SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
-          payload: >-
+          payload: |
             {
                 "icon_emoji": ":rocket:",
                 "username": "Deploy - SquareOne",
@@ -65,7 +65,7 @@ runs:
           SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
-          payload: >-
+          payload: |
             {
                 "icon_emoji": ":rocket:",
                 "username": "Deploy - SquareOne",
@@ -95,7 +95,7 @@ runs:
           SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
-          payload: >-
+          payload: |
             {
                 "icon_emoji": ":rocket:",
                 "username": "Deploy - SquareOne",
