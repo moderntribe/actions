@@ -1,0 +1,17 @@
+name: ModernTribe - Commit Files
+description: Commit files in the same repository
+author: moderntribe
+inputs:
+  folder:
+    required: true
+    description: Folder to add files to the commit
+runs:
+  using: composite
+  steps:
+    - name: Commit files
+      shell: bash
+      run: |
+        git config --global user.name "github actions modern tribe"
+        git config --global user.email "devops@tri.be"
+        git add  ${{ inputs.folder }} --force
+        git commit --allow-empty -m "Commiting Deploy files"

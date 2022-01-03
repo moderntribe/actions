@@ -1,2 +1,3 @@
 # actions
-Modern Tribe central Repository for Github Actions
+
+Modern Tribe central repository for Github Actions.

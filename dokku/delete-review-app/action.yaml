@@ -1,0 +1,35 @@
+name: ModernTribe - Delete Review App
+description: Delete Review App in Dokku Server
+author: moderntribe
+inputs:
+    app_name:
+      required: true
+      description: Dokku Original App Name
+    review_app_name:
+      required: true
+      description: Dokku Review App Name
+    server:
+      required: true
+      description: Server Name
+    github_pat_token:
+      required: true
+      description: Github Personal Access token
+    gha_url:
+      required: true
+      description: Github Actions Run URL
+runs:
+  using: composite
+  steps:
+      - name: Repository Dispatch | Delete ${{ inputs.review_app_name }}
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          repository: moderntribe/dokku-ansible
+          event-type: delete-review-app
+          token: "${{ inputs.github_pat_token }}"
+          client-payload: |
+            {
+              "review_app_name": "${{ inputs.review_app_name }}",
+              "app_name": "${{ inputs.app_name }}",
+              "server": "${{ inputs.server }}",
+              "action_url": "${{ inputs.gha_url }}"
+            }
