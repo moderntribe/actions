@@ -1,4 +1,4 @@
-# actions
+# Modern Tribe GitHub Actions
 
 Modern Tribe central repository for reusable (composite) Github Actions.
 
