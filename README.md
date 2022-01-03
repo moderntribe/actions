@@ -1,6 +1,6 @@
 # Modern Tribe GitHub Actions
 
-Modern Tribe central repository for reusable (composite) Github Actions.
+Modern Tribe central repository for composite Github Actions.
 
 ## Support
 
