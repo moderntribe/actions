@@ -25,7 +25,7 @@ runs:
         shell: bash
         run: |
 
-          ssh dokku@${{ inputs.server }} apps:exists sq1-pr907 || exit_code=$(echo $?)
+          ssh -q dokku@${{ inputs.server }} apps:exists sq1-pr907 || exit_code=$(echo $?)
 
           if [ -z "$exit_code" ]; then
               echo "App already exists. Skipping creation..."
