@@ -6,11 +6,10 @@ on:
         required: true
         type: string
         description: Dokku Original App Name
-      server:
-        required: true
-        type: string
     secrets:
       github_pat_token:
+        required: true
+      server:
         required: true
 
 jobs:
