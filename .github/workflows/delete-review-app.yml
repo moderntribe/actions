@@ -1,4 +1,4 @@
-name: Reusable Workflow - Create Review App
+name: Reusable Workflow - Delete Review App
 on:
   workflow_call:
     inputs:
@@ -22,11 +22,11 @@ jobs:
         with:
           app_name: ${{ inputs.app_name }}
 
-      - name: Create review app ${{ inputs.review_app_name }}
-        uses: moderntribe/actions/dokku/create-review-app@v1
+      - name: Delete review app ${{ env.REVIEW_APP }}
+        uses: moderntribe/actions/dokku/delete-review-app@v1
         with:
           app_name: ${{ inputs.app_name }}
           review_app_name: ${{ inputs.review_app_name }}
-          server: ${{ secrets.server }}
+          server: ${{ inputs.server }}
           github_pat_token: ${{ secrets.github_pat_token }}
           gha_url: ${{ inputs.gha_url }}
