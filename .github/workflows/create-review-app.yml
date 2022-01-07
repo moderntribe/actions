@@ -25,7 +25,7 @@ jobs:
         uses: moderntribe/actions/dokku/create-review-app@v1
         with:
           app_name: ${{ inputs.app_name }}
-          review_app_name: ${{ inputs.review_app_name }}
+          review_app_name: ${{ env.REVIEW_APP }}
           server: ${{ secrets.server }}
           github_pat_token: ${{ secrets.github_pat_token }}
-          gha_url: ${{ inputs.gha_url }}
+          gha_url: ${{ env.GHA_URL }}
