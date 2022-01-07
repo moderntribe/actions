@@ -27,11 +27,10 @@ runs:
 
           ssh dokku@moderntribe.qa apps:exists sq1-pr907 ; exit_code=$(echo $?)
 
-          if [ $exit_code -eq 0 ]
-          then
+          if [ $exit_code -eq 0 ]; then
               echo "App already exists. Skipping creation..."
               echo ::set-output name=app_exists::"true"
-          elif [ $exit_code -eq 20 ]
+          elif [ $exit_code -eq 20 ]; then
             echo "App does not exists. Creating review app..."
             echo ::set-output name=app_exists::"false"
           else
