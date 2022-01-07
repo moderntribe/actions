@@ -2,7 +2,7 @@ name: 'SquareOne - Build Node'
 description: 'Sets up Node and installs deps using yarn.'
 author: 'moderntribe'
 runs:
-  using: 'composite'
+  using: composite
   steps:
     - name: Setup node version
       uses: actions/setup-node@v2

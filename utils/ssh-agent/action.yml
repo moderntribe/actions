@@ -9,7 +9,7 @@ inputs:
       required: false
       description: Server
 runs:
-    using: 'composite'
+    using: composite
     steps:
       - name: Add SSH key
         shell: bash

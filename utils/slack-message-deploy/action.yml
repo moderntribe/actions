@@ -22,7 +22,7 @@ inputs:
       description: Github Actions Run URL
 
 runs:
-    using: 'composite'
+    using: composite
     steps:
       - shell: bash
         run: echo "Status=${{ inputs.status }}"

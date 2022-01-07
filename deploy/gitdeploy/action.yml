@@ -9,7 +9,7 @@ inputs:
       required: true
       description: Branch being deployed
 runs:
-    using: 'composite'
+    using: composite
     steps:
       - name: Deploy to ${{ inputs.app }}
         shell: bash
