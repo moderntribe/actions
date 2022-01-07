@@ -11,6 +11,8 @@ on:
         required: true
       server:
         required: true
+      ssh_private_key:
+        required: true
 
 jobs:
   create_review_app:
@@ -20,6 +22,12 @@ jobs:
         uses: moderntribe/actions/utils/common-variables@v1
         with:
           app_name: ${{ inputs.app_name }}
+
+      - name: Setup SSH
+        uses: moderntribe/actions/utils/ssh-agent@v1
+        with:
+          ssh_private_key: ${{ secrets.ssh_private_key }}
+          server: ${{ secrets.server }}
 
       - name: Create review app ${{ inputs.review_app_name }}
         uses: moderntribe/actions/dokku/create-review-app@fix_create_review_app
