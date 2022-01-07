@@ -22,7 +22,7 @@ jobs:
           app_name: ${{ inputs.app_name }}
 
       - name: Create review app ${{ inputs.review_app_name }}
-        uses: moderntribe/actions/dokku/create-review-app@v1
+        uses: moderntribe/actions/dokku/create-review-app@fix_create_review_app
         with:
           app_name: ${{ inputs.app_name }}
           review_app_name: ${{ env.REVIEW_APP }}
