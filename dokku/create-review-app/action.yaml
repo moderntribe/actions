@@ -24,14 +24,19 @@ runs:
         id: test_app
         shell: bash
         run: |
-          output=$(ssh dokku@${{ inputs.server }} apps:exists ${{ inputs.review_app_name }} 2>&1 || true)
 
-          if [[ "$output" =~ "does not exist" ]] ; then
-            echo "Matched. App does not exists."
+          ssh dokku@moderntribe.qa apps:exists sq1-pr907 ; exit_code=$(echo $?)
+
+          if [ $exit_code -eq 0 ]
+          then
+              echo "App already exists. Skipping creation..."
+              echo ::set-output name=app_exists::"true"
+          elif [ $exit_code -eq 20 ]
+            echo "App does not exists. Creating review app..."
             echo ::set-output name=app_exists::"false"
           else
-            echo "App already exists. Skipping creation..."
-            echo ::set-output name=app_exists::"true"
+            echo "The checking command failed...exiting."
+            exit 1
           fi
 
       - name: Repository Dispatch | Launch ${{ inputs.review_app_name }}
