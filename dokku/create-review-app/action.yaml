@@ -24,7 +24,6 @@ runs:
         id: test_app
         shell: bash
         run: |
-
           ssh -q dokku@${{ inputs.server }} apps:exists sq1-pr907 || exit_code=$(echo $?)
 
           if [ -z "$exit_code" ]; then
