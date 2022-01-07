@@ -3,13 +3,13 @@ description: 'Sets common environment variables needed for deploys'
 author: 'moderntribe'
 inputs:
   base_branch:
-    required: true
-    description: Incoming Webhook URL
+    required: false
+    description: Branch
 runs:
   using: 'composite'
   steps:
-    - name: Extract PR branch name
-      id: extract_pr
+    - name: Extract branch name
+      id: extract_branch
       shell: bash
       env:
         BASE_BRANCH: ${{ inputs.base_branch }}
@@ -20,4 +20,4 @@ runs:
       run: |
         echo "REVIEW_APP=${{ env.APPNAME }}-pr${{ github.event.pull_request.number }}" >> $GITHUB_ENV
         echo "GHA_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
-        echo "BRANCH=${{ steps.extract_pr.outputs.branch }}" >> $GITHUB_ENV
+        echo "BRANCH=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_ENV
