@@ -8,10 +8,14 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Commit files
+    - name: Config Git
       shell: bash
       run: |
         git config --global user.name "github actions modern tribe"
         git config --global user.email "devops@tri.be"
-        git add  ${{ inputs.folder }} --force
+
+    - name: Commit files
+      shell: bash
+      run: |
+        git add ${{ inputs.folder }} --force
         git commit --allow-empty -m "Commiting Deploy files"
