@@ -8,9 +8,18 @@ inputs:
     branch:
       required: true
       description: Branch being deployed
+    ssh_private_key:
+      required: false
+      description: SSH Private Key
 runs:
     using: composite
     steps:
+      - name: Setup SSH
+        if: ${{ inputs.ssh_private_key != '' }}
+        uses: ./utils/ssh-agent
+        with:
+          ssh_private_key: ${{ inputs.ssh_private_key }}
+
       - name: Deploy to ${{ inputs.app }}
         shell: bash
         run: |

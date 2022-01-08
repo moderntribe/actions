@@ -2,7 +2,7 @@ name: 'SquareOne - Build Node'
 description: 'Sets up Node and installs deps using yarn.'
 author: 'moderntribe'
 inputs:
-  directory:
+  folder:
     required: false
     default: .
     description: Folder node files should be built
@@ -15,7 +15,7 @@ runs:
         node-version-file: '.nvmrc'
 
     - name: Yarn install and build
-      working-directory: ${{ inputs.directory }}
+      working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
         yarn install
@@ -23,13 +23,13 @@ runs:
         npm run server_dist
 
     - name: Gulp Build
-      working-directory: ${{ inputs.directory }}
+      working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
         (test -f gulpfile.js && gulp build) || echo gulpfile.js does not exist, skipping step
 
     - name: Grunt Build
-      working-directory: ${{ inputs.directory }}
+      working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
         (test -f Gruntfile.js &&grunt dist) || echo Gruntfile.js does not exist, skipping step
