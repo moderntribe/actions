@@ -1,0 +1,49 @@
+name: 'SquareOne - Wordpress to Root Folder'
+description: 'Moves wordpress files to the root folder for managed deploys'
+author: 'moderntribe'
+inputs:
+  folder:
+    required: true
+    description: Folder wodrpress should be moved
+runs:
+  using: composite
+  steps:
+    - name: RSync wordpress folder
+      shell: bash
+      run: |
+        rsync -rpv --delete ./wp/ ${{ inputs.folder }} \
+          --exclude=.git \
+          --exclude=.gitmodules \
+          --exclude=.gitignore \
+          --exclude=.htaccess \
+          --exclude=composer.json \
+          --exclude=wp-config.php \
+          --exclude=wp-content
+
+    - name: RSync wp-content folder (plugins and themes)
+      shell: bash
+      run: |
+        rsync -rpv --delete ./wp-content ${{ inputs.folder }} \
+          --exclude=.git \
+          --exclude=.gitmodules \
+          --exclude=.gitignore \
+          --exclude=.htaccess \
+          --exclude=.babelrc \
+          --exclude=.editorconfig \
+          --exclude=.eslintrc \
+          --exclude=dev \
+          --exclude=dev_components \
+          --exclude=docs \
+          --exclude=gulp_tasks \
+          --exclude=node_modules \
+          --exclude=wp-content/object-cache.php \
+          --exclude=wp-content/memcached-object-cache.php \
+          --exclude=wp-content/plugins/core/assets/templates/cli
+
+    - name: Rsync Composer Vendor files
+      shell: bash
+      run: |
+        rsync -rpv ./ ${{ inputs.folder }} \
+          --include=build-process.php \
+          --include=vendor/*** \
+          --exclude=*
