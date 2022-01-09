@@ -19,6 +19,7 @@ runs:
 
     - name: Get Composer Cache Directory
       id: composer-cache
+      shell: bash
       run: |
         echo "::set-output name=dir::$(composer config cache-files-dir)"
 
