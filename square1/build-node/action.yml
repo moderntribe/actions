@@ -18,9 +18,9 @@ runs:
       working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
-        ls -la .
         yarn install
-        npm run server_dist
+        npm run validate --if-present
+        npm run server_dist --if-present
 
     - name: Gulp Build
       working-directory: ${{ inputs.folder }}
