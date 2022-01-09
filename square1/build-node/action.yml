@@ -12,22 +12,17 @@ runs:
     - name: Setup node version
       uses: actions/setup-node@v2
       with:
-        node-version-file: '.nvmrc'
+        node-version-file: .nvmrc
+        cache: yarn
+        cache-dependency-path: ${{ inputs.folder }}/package-lock.json
 
-    - uses: actions/cache@v2
-      id: yarn-cache
-      with:
-        path: '**/node_modules'
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
-    - name: Install Yarn dependencies install
-      if: steps.yarn-cache.outputs.cache-hit != 'true'
+    - name: Install Yarn dependencies
       working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
         yarn install
 
-    - name: Yarn build
+    - name: NPM build
       working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
