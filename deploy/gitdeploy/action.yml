@@ -22,7 +22,7 @@ runs:
         if: ${{ inputs.ssh_private_key != '' }}
         uses: moderntribe/actions/utils/ssh-agent@v1
         with:
-          ssh_private_key: ${{ secrets.ssh_private_key }}
+          ssh_private_key: ${{ inputs.ssh_private_key }}
 
       - name: Deploy to ${{ inputs.app }}
         shell: bash
