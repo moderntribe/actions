@@ -19,7 +19,6 @@ runs:
       shell: bash
       run: |
         yarn install
-        npm run validate
         npm run server_dist
 
     - name: Gulp Build
