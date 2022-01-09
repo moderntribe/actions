@@ -20,7 +20,8 @@ runs:
         path: '**/node_modules'
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Yarn install
+    - name: Install Yarn dependencies install
+      if: steps.yarn-cache.outputs.cache-hit != 'true'
       working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
