@@ -13,30 +13,41 @@ runs:
       uses: actions/setup-node@v2
       with:
         node-version-file: ${{ inputs.folder }}/.nvmrc
-        cache: npm
-        cache-dependency-path: ${{ inputs.folder }}/package-lock.json
+
+    - name: Get yarn cache directory path
+      shell: bash
+      id: yarn-cache-dir-path
+      run: echo "::set-output name=dir::$(yarn cache dir)"
+
+    - uses: actions/cache@v2
+      id: yarn-cache
+      with:
+        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('${{ inputs.folder }}/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn
 
     - name: Install Yarn dependencies
       working-directory: ${{ inputs.folder }}
       shell: bash
-      run: |
-        yarn install
+      run: yarn
+
+    - name: NPM validate
+      working-directory: ${{ inputs.folder }}
+      shell: bash
+      run: npm run validate --if-present
 
     - name: NPM build
       working-directory: ${{ inputs.folder }}
       shell: bash
-      run: |
-        npm run validate --if-present
-        npm run server_dist --if-present
+      run:  npm run server_dist --if-present
 
     - name: Gulp Build
       working-directory: ${{ inputs.folder }}
       shell: bash
-      run: |
-        (test -f gulpfile.js && gulp build) || echo gulpfile.js does not exist, skipping step
+      run: (test -f gulpfile.js && gulp build) || echo gulpfile.js does not exist, skipping step
 
     - name: Grunt Build
       working-directory: ${{ inputs.folder }}
       shell: bash
-      run: |
-        (test -f Gruntfile.js &&grunt dist) || echo Gruntfile.js does not exist, skipping step
+      run: (test -f Gruntfile.js &&grunt dist) || echo Gruntfile.js does not exist, skipping step
