@@ -8,6 +8,14 @@ inputs:
 runs:
   using: composite
   steps:
+
+    - name: Git Init repository
+      shell: bash
+      working-directory: ${{ inputs.folder }}
+      run: |
+        git config --global init.defaultBranch master
+        git init
+
     - name: RSync wordpress folder
       shell: bash
       run: |

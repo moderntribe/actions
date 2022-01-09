@@ -9,9 +9,6 @@ inputs:
     required: false
     default: master
     description: Branch being deployed
-  ssh_private_key:
-    required: false
-    description: SSH Private Key
   folder:
     required: false
     default: .
@@ -19,15 +16,8 @@ inputs:
 runs:
     using: composite
     steps:
-      - name: Setup SSH
-        if: ${{ inputs.ssh_private_key != '' }}
-        uses: moderntribe/actions/utils/ssh-agent@v1
-        with:
-          ssh_private_key: ${{ inputs.ssh_private_key }}
-
       - name: Deploy to ${{ inputs.app }}
         shell: bash
         working-directory: ${{ inputs.folder }}
         run: |
-          git remote add deploy_server ${{ inputs.git_url }}
-          git push deploy_server ${{ inputs.branch }}:master --force
+          git push ${{ inputs.git_url }} ${{ inputs.branch }}:master --force
