@@ -16,6 +16,7 @@ runs:
 
     - name: Commit files
       shell: bash
+      working-directory: ${{ inputs.folder }}
       run: |
-        git add ${{ inputs.folder }} --force
+        git add . --force
         git commit --allow-empty -m "Commiting Deploy files"
