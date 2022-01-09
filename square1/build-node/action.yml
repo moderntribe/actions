@@ -46,7 +46,7 @@ runs:
     - name: NPM build
       working-directory: ${{ inputs.folder }}
       shell: bash
-      run:  npm run server_dist --if-present
+      run: npm run server_dist --if-present
 
     - name: Gulp Build
       working-directory: ${{ inputs.folder }}
