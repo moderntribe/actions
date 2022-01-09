@@ -56,4 +56,4 @@ runs:
     - name: Grunt Build
       working-directory: ${{ inputs.folder }}
       shell: bash
-      run: (test -f Gruntfile.js &&grunt dist) || echo Gruntfile.js does not exist, skipping step
+      run: (test -f Gruntfile.js && grunt dist) || echo Gruntfile.js does not exist, skipping step
