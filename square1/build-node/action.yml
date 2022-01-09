@@ -19,11 +19,17 @@ runs:
       id: yarn-cache-dir-path
       run: echo "::set-output name=dir::$(yarn cache dir)"
 
+    - name: Get yarn hash key
+      shell: bash
+      id: yarn-hashfile
+      working-directory: ${{ inputs.folder }}
+      run: echo "::set-output name=hash::${{ hashFiles('**/yarn.lock') }}"
+
     - uses: actions/cache@v2
       id: yarn-cache
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('${{ inputs.folder }}/yarn.lock') }}
+        key: ${{ runner.os }}-yarn-${{ steps.yarn-hashfile.outputs.hash }}
         restore-keys: |
           ${{ runner.os }}-yarn
 
