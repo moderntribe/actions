@@ -6,7 +6,8 @@ inputs:
     required: true
     description: Git Url
   branch:
-    required: true
+    required: false
+    default: master
     description: Branch being deployed
   ssh_private_key:
     required: false
