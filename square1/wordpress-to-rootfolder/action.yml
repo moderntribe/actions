@@ -11,7 +11,7 @@ runs:
     - name: RSync wordpress folder
       shell: bash
       run: |
-        rsync -rpv --delete wp/ ${{ inputs.folder }} \
+        rsync -rpv --delete ./wp/ ${{ inputs.folder }} \
           --exclude=.git \
           --exclude=.gitmodules \
           --exclude=.gitignore \
@@ -23,7 +23,7 @@ runs:
     - name: RSync wp-content folder (plugins and themes)
       shell: bash
       run: |
-        rsync -rpv --delete wp-content/ ${{ inputs.folder }} \
+        rsync -rpv --delete ./wp-content ${{ inputs.folder }} \
           --exclude=.git \
           --exclude=.gitmodules \
           --exclude=.gitignore \
@@ -43,7 +43,7 @@ runs:
     - name: Rsync Composer Vendor files
       shell: bash
       run: |
-        rsync -rpv . ${{ inputs.folder }} \
+        rsync -rpv ./ ${{ inputs.folder }} \
           --include=build-process.php \
           --include=vendor/*** \
           --exclude=*
