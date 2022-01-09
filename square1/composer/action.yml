@@ -19,7 +19,7 @@ runs:
     - name: Setup PHP, with composer and extensions
       uses: shivammathur/setup-php@v2
       with:
-        tools: composer:${{ imputs.composer_version }}
+        tools: composer:${{ inputs.composer_version }}
 
     - name: Install composer dependencies
       shell: bash
