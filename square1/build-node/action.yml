@@ -13,7 +13,7 @@ runs:
       uses: actions/setup-node@v2
       with:
         node-version-file: ${{ inputs.folder }}/.nvmrc
-        cache: yarn
+        cache: npm
         cache-dependency-path: ${{ inputs.folder }}/package-lock.json
 
     - name: Install Yarn dependencies
