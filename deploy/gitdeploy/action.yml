@@ -20,4 +20,5 @@ runs:
         shell: bash
         working-directory: ${{ inputs.folder }}
         run: |
-          git push ${{ inputs.git_url }} ${{ inputs.branch }}:master --force
+          git remote add deploy_server ${{ inputs.git_url }}
+          git push deploy_server ${{ inputs.branch }}:master --force
