@@ -1,0 +1,43 @@
+name: 'SquareOne - Install Composer'
+description: 'Install Composer Dependencies'
+author: 'moderntribe'
+inputs:
+  composer_version:
+    required: false
+    default: v1
+    description: Composer version to be used
+  composer_env:
+    required: false
+    description: Composer Environment variables
+  folder:
+    required: false
+    default: .
+    description: Folder node files should be built
+runs:
+  using: composite
+  steps:
+
+    - name: Get Composer Cache Directory
+      id: composer-cache
+      shell: bash
+      run: |
+        echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+    - uses: actions/cache@v2
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+
+    - name: Setup PHP, with composer and extensions
+      uses: shivammathur/setup-php@v2
+      with:
+        tools: composer:${{ inputs.composer_version }}
+
+    - name: Install composer dependencies
+      shell: bash
+      run: |
+        echo "${{ inputs.composer_env }}" > .env
+        composer install --optimize-autoloader --ignore-platform-reqs --no-dev
+        rm .env

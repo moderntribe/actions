@@ -5,22 +5,42 @@ inputs:
   app_name:
     required: false
     description: Dokku Original App Name
+  pr_number:
+    required: false
+    description: Pull Request Number
   base_branch:
     required: false
     description: Branch
+outputs:
+  gha-url:
+    description: "Github Actions URL id"
+    value: ${{ steps.github-runner-url.outputs.gha-url }}
+  branch:
+    description: "Branch name"
+    value: ${{ steps.extract-branch-name.outputs.branch }}
+  review-app:
+    description: "Review App Name"
+    value: ${{ steps.set-review-app.outputs.review-app }}
 runs:
   using: composite
   steps:
-    - name: Extract branch name
-      id: extract_branch
-      shell: bash
+
+    - id: extract-branch-name
       env:
         BASE_BRANCH: ${{ inputs.base_branch }}
-      run: echo "##[set-output name=branch;]$(echo ${BASE_BRANCH#refs/heads/})"
-
-    - name: Set Variables
-      shell: bash
       run: |
-        echo "REVIEW_APP=${{ inputs.app_name }}-pr${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+        echo "BRANCH=$(echo ${BASE_BRANCH#refs/heads/})" >> $GITHUB_ENV
+        echo "##[set-output name=branch;]$(echo ${BASE_BRANCH#refs/heads/})"
+      shell: bash
+
+    - id: github-runner-url
+      run: |
         echo "GHA_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
-        echo "BRANCH=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_ENV
+        echo "::set-output name=gha-url::$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+      shell: bash
+
+    - id: set-review-app
+      run: |
+        echo "REVIEW_APP=${{ inputs.app_name }}-pr${{ inputs.pr_number }}" >> $GITHUB_ENV
+        echo "::set-output name=review-app::${{ inputs.app_name }}-pr${{ inputs.pr_number }}"
+      shell: bash

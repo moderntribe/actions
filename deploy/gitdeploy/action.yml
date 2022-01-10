@@ -2,17 +2,23 @@ name: 'ModernTribe - Git Deploy'
 description: 'Deploy to a Git repository'
 author: 'moderntribe'
 inputs:
-    git_url:
-      required: true
-      description: Git Url
-    branch:
-      required: true
-      description: Branch being deployed
+  git_url:
+    required: true
+    description: Git Url
+  branch:
+    required: false
+    default: master
+    description: Branch being deployed
+  folder:
+    required: false
+    default: .
+    description: Git folder path
 runs:
     using: composite
     steps:
       - name: Deploy to ${{ inputs.app }}
         shell: bash
+        working-directory: ${{ inputs.folder }}
         run: |
           git remote add deploy_server ${{ inputs.git_url }}
           git push deploy_server ${{ inputs.branch }}:master --force
