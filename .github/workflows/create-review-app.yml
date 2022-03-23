@@ -6,6 +6,10 @@ on:
         required: true
         type: string
         description: Dokku Original App Name
+      pr_number:
+        required: false
+        type: string
+        description: Pull Request Number
     secrets:
       github_pat_token:
         required: true
@@ -22,6 +26,7 @@ jobs:
         uses: moderntribe/actions/utils/common-variables@v1
         with:
           app_name: ${{ inputs.app_name }}
+          pr_number: ${{ inputs.pr_number }}
 
       - name: Setup SSH
         uses: moderntribe/actions/utils/ssh-agent@v1
