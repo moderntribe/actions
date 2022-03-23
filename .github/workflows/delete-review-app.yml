@@ -6,6 +6,10 @@ on:
         required: true
         type: string
         description: Dokku Original App Name
+      pr_number:
+        required: false
+        type: string
+        description: Pull Request Number
     secrets:
       github_pat_token:
         required: true
@@ -20,6 +24,7 @@ jobs:
         uses: moderntribe/actions/utils/common-variables@v1
         with:
           app_name: ${{ inputs.app_name }}
+          pr_number: ${{ inputs.pr_number }}
 
       - name: Delete review app ${{ env.REVIEW_APP }}
         uses: moderntribe/actions/dokku/delete-review-app@v1
