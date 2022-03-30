@@ -34,7 +34,6 @@ runs:
 
     - uses: actions/cache@v2
       if: ${{ inputs.disable_cache == 'true' }}
-      working-directory: ${{ inputs.folder }}
       with:
         path: ${{ steps.composer-cache.outputs.dir }}
         key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
