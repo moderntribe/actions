@@ -9,21 +9,32 @@ inputs:
   composer_env:
     required: false
     description: Composer Environment variables
+  php_version:
+    required: false
+    default: "7.4"
+    description: PHP version to be used
+  disable_cache:
+    required: false
+    default: "false"
+    description: Flag to disable caching composer
   folder:
     required: false
     default: .
-    description: Folder node files should be built
+    description: Folder composer install should run
 runs:
   using: composite
   steps:
 
     - name: Get Composer Cache Directory
       id: composer-cache
+      working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
         echo "::set-output name=dir::$(composer config cache-files-dir)"
 
     - uses: actions/cache@v2
+      if: ${{ inputs.disable_cache == 'true' }}
+      working-directory: ${{ inputs.folder }}
       with:
         path: ${{ steps.composer-cache.outputs.dir }}
         key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -34,8 +45,10 @@ runs:
       uses: shivammathur/setup-php@v2
       with:
         tools: composer:${{ inputs.composer_version }}
+        php-version: ${{ inputs.php_version }}
 
     - name: Install composer dependencies
+      working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
         echo "${{ inputs.composer_env }}" > .env
