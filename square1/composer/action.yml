@@ -60,6 +60,6 @@ runs:
       working-directory: ${{ inputs.folder }}
       shell: bash
       run: |
-        echo "${{ inputs.composer_env }}" > .env
+        echo "${{ inputs.composer_env }}" >> .env
         composer install --optimize-autoloader --ignore-platform-reqs --no-dev
         rm .env
