@@ -60,7 +60,7 @@ runs:
       working-directory: ${{ inputs.folder }}
       shell: bash
       env:
-        COMPOSER_MEMORY_LIMIT=1
+        COMPOSER_MEMORY_LIMIT: "-1"
       run: |
         echo "${{ inputs.composer_env }}" >> .env
         composer install --optimize-autoloader --ignore-platform-reqs --no-dev
