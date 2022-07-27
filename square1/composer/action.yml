@@ -21,6 +21,9 @@ inputs:
     required: false
     default: .
     description: Folder composer install should run
+  github_token:
+    required: false
+    description: Github token for composer auth
 runs:
   using: composite
   steps:
@@ -45,6 +48,13 @@ runs:
       with:
         tools: composer:${{ inputs.composer_version }}
         php-version: ${{ inputs.php_version }}
+
+    - name: Setup Github Token
+      if: ${{ inputs.github_token != '' }}
+      working-directory: ${{ inputs.folder }}
+      shell: bash
+      run: |
+        composer config -g github-oauth.github.com ${{ inputs.github_token }}
 
     - name: Install composer dependencies
       working-directory: ${{ inputs.folder }}
