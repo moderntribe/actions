@@ -35,7 +35,7 @@ runs:
       run: |
         echo "::set-output name=dir::$(composer config cache-files-dir)"
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v4
       if: ${{ inputs.disable_cache == 'true' }}
       with:
         path: ${{ steps.composer-cache.outputs.dir }}
