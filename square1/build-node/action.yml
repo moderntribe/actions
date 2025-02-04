@@ -10,7 +10,7 @@ runs:
   using: composite
   steps:
     - name: Setup node version
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version-file: ${{ inputs.folder }}/.nvmrc
 
@@ -25,7 +25,7 @@ runs:
       working-directory: ${{ inputs.folder }}
       run: echo "::set-output name=hash::${{ hashFiles('**/yarn.lock') }}"
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v4
       id: yarn-cache
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
