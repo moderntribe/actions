@@ -30,17 +30,17 @@ runs:
         BASE_BRANCH: ${{ inputs.base_branch }}
       run: |
         echo "BRANCH=$(echo ${BASE_BRANCH#refs/heads/})" >> $GITHUB_ENV
-        echo "##[set-output name=branch;]$(echo ${BASE_BRANCH#refs/heads/})"
+        echo "branch=$(echo ${BASE_BRANCH#refs/heads/})" >> $GITHUB_OUPUT
       shell: bash
 
     - id: github-runner-url
       run: |
         echo "GHA_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
-        echo "::set-output name=gha-url::$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+        echo "gha-url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUPUT
       shell: bash
 
     - id: set-review-app
       run: |
         echo "REVIEW_APP=${{ inputs.app_name }}-pr${{ inputs.pr_number }}" >> $GITHUB_ENV
-        echo "::set-output name=review-app::${{ inputs.app_name }}-pr${{ inputs.pr_number }}"
+        echo "review-app=${{ inputs.app_name }}-pr${{ inputs.pr_number }}" >> $GITHUB_OUPUT
       shell: bash
