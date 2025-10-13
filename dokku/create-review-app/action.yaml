@@ -28,10 +28,10 @@ runs:
 
           if [ -z "$exit_code" ]; then
               echo "App already exists. Skipping creation..."
-              echo ::set-output name=app_exists::"true"
+              echo "app_exists='true'" >> $GITHUB_OUTPUT
           elif [ "$exit_code" -eq 20 ]; then
             echo "App does not exists. Creating review app..."
-            echo ::set-output name=app_exists::"false"
+            echo "app_exists='false'" >> $GITHUB_OUTPUT
           else
             echo "The checking command failed...exiting."
             exit 1
