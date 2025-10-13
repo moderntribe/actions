@@ -29,8 +29,8 @@ runs:
       env:
         BASE_BRANCH: ${{ inputs.base_branch }}
       run: |
-        echo "BRANCH=$(echo ${BASE_BRANCH#refs/heads/})" >> $GITHUB_ENV
-        echo "branch=$(echo ${BASE_BRANCH#refs/heads/})" >> $GITHUB_OUPUT
+        echo "BRANCH=${BASE_BRANCH#refs/heads/}" >> $GITHUB_ENV
+        echo "branch=${BASE_BRANCH#refs/heads/}" >> $GITHUB_OUPUT
       shell: bash
 
     - id: github-runner-url
