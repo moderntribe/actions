@@ -37,11 +37,6 @@ runs:
             exit 1
           fi
 
-      - name: Debug Output
-        shell: bash
-        run: |
-          echo "Debug: App Exists: ${{ steps.test_app.outputs.app_exists }}"
-
       - name: Repository Dispatch | Launch ${{ inputs.review_app_name }}
         if: steps.test_app.outputs.app_exists == 'false'
         uses: peter-evans/repository-dispatch@v1
