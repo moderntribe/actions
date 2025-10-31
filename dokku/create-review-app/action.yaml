@@ -28,14 +28,18 @@ runs:
 
           if [ -z "$exit_code" ]; then
               echo "App already exists. Skipping creation..."
-              echo "app_exists='true'" >> $GITHUB_OUTPUT
+              echo "app_exists=true" >> $GITHUB_OUTPUT
           elif [ "$exit_code" -eq 20 ]; then
             echo "App does not exists. Creating review app..."
-            echo "app_exists='false'" >> $GITHUB_OUTPUT
+            echo "app_exists=false" >> $GITHUB_OUTPUT
           else
             echo "The checking command failed...exiting."
             exit 1
           fi
+
+      - name: Debug Output
+        run: |
+          echo "Debug: App Exists: ${{ steps.test_app.outputs.app_exists }}"
 
       - name: Repository Dispatch | Launch ${{ inputs.review_app_name }}
         if: steps.test_app.outputs.app_exists == 'false'
