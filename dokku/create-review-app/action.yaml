@@ -38,6 +38,7 @@ runs:
           fi
 
       - name: Debug Output
+        shell: bash
         run: |
           echo "Debug: App Exists: ${{ steps.test_app.outputs.app_exists }}"
 
