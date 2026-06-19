@@ -21,7 +21,7 @@ runs:
   using: composite
   steps:
       - name: Repository Dispatch | Delete ${{ inputs.review_app_name }}
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v4
         with:
           repository: moderntribe/dokku-ansible
           event-type: delete-review-app
