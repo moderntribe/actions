@@ -28,12 +28,12 @@ runs:
         run: echo "Status=${{ inputs.status }}"
 
       - name: Slack Success Notification
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v3
         if: ${{ inputs.status == 'success' }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
+          webhook: ${{ inputs.slack_webhook_url }}
+          webhook-type: incoming-webhook
+          payload-templated: true
           payload: |
             {
               "icon_emoji": ":rocket:",
@@ -56,12 +56,12 @@ runs:
 
 
       - name: Slack Failure Notification
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v3
         if: ${{ inputs.status == 'failure' }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
+          webhook: ${{ inputs.slack_webhook_url }}
+          webhook-type: incoming-webhook
+          payload-templated: true
           payload: |
             {
               "icon_emoji": ":rocket:",
@@ -83,12 +83,12 @@ runs:
             }
 
       - name: Slack Cancel Notification
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v3
         if: ${{ inputs.status == 'cancelled' }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
+          webhook: ${{ inputs.slack_webhook_url }}
+          webhook-type: incoming-webhook
+          payload-templated: true
           payload: |
             {
               "icon_emoji": ":rocket:",
