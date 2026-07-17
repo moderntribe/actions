@@ -1,0 +1,160 @@
+name: 'ModernTribe - SSH Deploy (release directory)'
+description: >
+  Capistrano-style, SSH-based deploy. Rsyncs a build into a fresh
+  releases/<timestamp>/ on the server, symlinks persistent shared items into it,
+  atomically flips the `current` symlink, and rotates old releases. Every step is
+  visible in the GitHub Actions log (no server-side git hooks).
+author: 'moderntribe'
+
+inputs:
+  ssh-host:
+    required: true
+    description: Target server hostname or IP.
+  ssh-user:
+    required: true
+    description: SSH user.
+  ssh-key:
+    required: true
+    description: SSH private key (passphrase-less CI key).
+  ssh-port:
+    required: false
+    default: "22"
+    description: SSH port.
+  deploy-path:
+    required: true
+    description: Absolute path on the server holding current/, releases/ and shared/.
+  source-dir:
+    required: false
+    default: "."
+    description: Directory on the runner containing the built files to deploy.
+  exclude-file:
+    required: false
+    default: ""
+    description: Path (on the runner) to an rsync exclude file.
+  shared-items:
+    required: false
+    default: ""
+    description: >
+      Newline-separated `src:dest` pairs. `src` is relative to <deploy-path>/shared,
+      `dest` is relative to the release root. Each dest is replaced with a symlink to
+      the shared src (persistent, never overwritten). Example:
+        uploads:wp-content/uploads
+        local-config.php:local-config.php
+  keep-releases:
+    required: false
+    default: "2"
+    description: Number of releases to retain (older ones are pruned).
+
+outputs:
+  release-id:
+    description: The timestamp id of the release that was deployed.
+    value: ${{ steps.gen.outputs.release-id }}
+
+runs:
+  using: composite
+  steps:
+    # Installs the private key at ~/.ssh/id_rsa and seeds known_hosts (port 22).
+    - name: Setup SSH key
+      uses: moderntribe/actions/utils/ssh-agent@v1
+      with:
+        ssh_private_key: ${{ inputs.ssh-key }}
+        server: ${{ inputs.ssh-host }}
+
+    # Pin the host key for the actual port (utils/ssh-agent only scans 22).
+    - name: Pin host key for port ${{ inputs.ssh-port }}
+      shell: bash
+      run: |
+        mkdir -p /home/runner/.ssh
+        ssh-keyscan -p "${{ inputs.ssh-port }}" -H "${{ inputs.ssh-host }}" \
+          >> /home/runner/.ssh/known_hosts 2>/dev/null || true
+
+    - name: Generate release id
+      id: gen
+      shell: bash
+      run: echo "release-id=$(date -u +%Y-%m-%d_%H-%M-%S)" >> "$GITHUB_OUTPUT"
+
+    - name: Ensure base directories exist on server
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+      run: |
+        $SSH "$HOST" "mkdir -p '$DEPLOY_PATH/releases' '$DEPLOY_PATH/shared'"
+
+    # Informational: shows what will be added / changed / removed versus the live
+    # release. --dry-run touches nothing on the server.
+    - name: Preview changes vs current release
+      shell: bash
+      env:
+        RSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        SRC: ${{ inputs.source-dir }}
+        EXCLUDE_FILE: ${{ inputs.exclude-file }}
+      run: |
+        exclude_arg=()
+        [ -n "$EXCLUDE_FILE" ] && exclude_arg=(--exclude-from="$EXCLUDE_FILE")
+
+        echo "### Deploy preview (vs current release)" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        if $RSH "$HOST" "test -d '$DEPLOY_PATH/current'"; then
+          rsync -rlpgoDzn --delete --itemize-changes \
+            -e "$RSH" "${exclude_arg[@]}" \
+            "${SRC%/}/" "$HOST:$DEPLOY_PATH/current/" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+        else
+          echo "(first deploy - no current release to diff against)" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+        fi
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Rsync build into releases/${{ steps.gen.outputs.release-id }}
+      shell: bash
+      env:
+        RSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        SRC: ${{ inputs.source-dir }}
+        EXCLUDE_FILE: ${{ inputs.exclude-file }}
+        RELEASE_ID: ${{ steps.gen.outputs.release-id }}
+      run: |
+        exclude_arg=()
+        [ -n "$EXCLUDE_FILE" ] && exclude_arg=(--exclude-from="$EXCLUDE_FILE")
+
+        # --link-dest hardlinks unchanged files from the live release (fast + cheap
+        # storage). Harmless/no-op on the first deploy when current/ is absent.
+        rsync -rlpgoDz --delete \
+          -e "$RSH" "${exclude_arg[@]}" \
+          --link-dest="$DEPLOY_PATH/current/" \
+          "${SRC%/}/" "$HOST:$DEPLOY_PATH/releases/$RELEASE_ID/"
+
+    - name: Ship finalize + rollback scripts
+      shell: bash
+      env:
+        SCP: "scp -p -P ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+      run: |
+        $SCP "$GITHUB_ACTION_PATH/finalize-release.sh" "$HOST:$DEPLOY_PATH/finalize-release.sh"
+        $SCP "$GITHUB_ACTION_PATH/rollback.sh"         "$HOST:$DEPLOY_PATH/rollback.sh"
+
+    - name: Finalize release (symlink shared, atomic flip, rotate)
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        RELEASE_ID: ${{ steps.gen.outputs.release-id }}
+        KEEP: ${{ inputs.keep-releases }}
+        SHARED_ITEMS: ${{ inputs.shared-items }}
+      run: |
+        # SHARED_ITEMS is passed on stdin so newlines survive the SSH boundary.
+        printf '%s' "$SHARED_ITEMS" | $SSH "$HOST" \
+          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP'"
+
+    - name: Deployed
+      shell: bash
+      run: |
+        echo "Deployed release ${{ steps.gen.outputs.release-id }} -> ${{ inputs.deploy-path }}/current" \
+          >> "$GITHUB_STEP_SUMMARY"
