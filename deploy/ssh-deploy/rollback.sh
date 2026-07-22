@@ -21,6 +21,7 @@ fi
 DEST=${DEST%/}
 [ -n "$DEST" ] && [ -d "$DEST" ] || { echo "ERROR: rollback target not found ($DEST)"; exit 1; }
 
-ln -sfn "$DEST" "$DEPLOY_PATH/current.tmp"
+# -r keeps `current` a relative link (-> releases/<id>) so the tree is relocatable.
+ln -srfn "$DEST" "$DEPLOY_PATH/current.tmp"
 mv -Tf "$DEPLOY_PATH/current.tmp" "$DEPLOY_PATH/current"
-echo "rolled back: current -> $DEST"
+echo "rolled back: current -> releases/$(basename "$DEST")"

@@ -8,6 +8,9 @@
 #
 # Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases>
 #   shared items ("src:dest" pairs, newline separated) are read from stdin.
+#
+# Requires GNU coreutils on the server (mv -T for the atomic flip, ln -sr for
+# relative symlinks).
 set -euo pipefail
 
 DEPLOY_PATH=${1:?deploy-path required}
@@ -28,24 +31,30 @@ while IFS=: read -r src dest; do
   s="$SHARED/$src"
   t="$NEW/$dest"
 
-  # Auto-create a missing shared source as a directory (e.g. uploads on first
-  # deploy). A shared FILE (e.g. local-config.php) must be seeded beforehand;
-  # if it is missing it is created here as an empty dir, which surfaces the
-  # setup mistake loudly rather than silently shipping without config.
-  [ -e "$s" ] || mkdir -p "$s"
+  # Auto-create only the uploads dir on first deploy. Every other shared source
+  # must already exist (seeded via shared-seeds, or set up during server setup);
+  # abort rather than symlink to a missing source and flip to a broken release.
+  if [ "$src" = "uploads" ] && [ ! -e "$s" ]; then
+    mkdir -p "$s"
+  elif [ ! -e "$s" ]; then
+    echo "ERROR: shared source $s missing (seed it or set it up first)"; exit 1
+  fi
 
   mkdir -p "$(dirname "$t")"
   rm -rf "$t"
-  ln -sfn "$s" "$t"
-  echo "linked $dest -> $s"
+  # -r makes the link relative to its own location, so the tree keeps working
+  # if <deploy-path> is moved or mounted under a different absolute path.
+  ln -srfn "$s" "$t"
+  echo "linked $dest -> shared/$src"
 done
 
 # --- 3. atomic flip --------------------------------------------------------
 # ln into a temp name then rename over `current`: readers never see a
 # half-built release, and the swap cannot leave `current` dangling.
-ln -sfn "$NEW" "$DEPLOY_PATH/current.tmp"
+# -r keeps `current` a relative link (-> releases/<id>) so the tree is relocatable.
+ln -srfn "$NEW" "$DEPLOY_PATH/current.tmp"
 mv -Tf "$DEPLOY_PATH/current.tmp" "$DEPLOY_PATH/current"
-echo "current -> $NEW"
+echo "current -> releases/$RELEASE_ID"
 
 # --- 4. rotate old releases ------------------------------------------------
 # Release dirs are machine timestamps (no spaces/newlines), so this is safe.

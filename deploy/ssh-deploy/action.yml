@@ -40,6 +40,16 @@ inputs:
       the shared src (persistent, never overwritten). Example:
         uploads:wp-content/uploads
         local-config.php:local-config.php
+  shared-seeds:
+    required: false
+    default: ""
+    description: >
+      Newline-separated `dest:src` pairs used to seed persistent shared files on
+      the FIRST deploy only. `dest` is relative to <deploy-path>/shared, `src` is
+      a path on the runner (e.g. a committed template). Each dest is copied from
+      src only if it does not already exist on the server, so an operator-edited
+      file is never overwritten by later deploys. Example:
+        local-config.php:.deploy/config/local-config-deployssh.php
   keep-releases:
     required: false
     default: "2"
@@ -138,6 +148,33 @@ runs:
       run: |
         $SCP "$GITHUB_ACTION_PATH/finalize-release.sh" "$HOST:$DEPLOY_PATH/finalize-release.sh"
         $SCP "$GITHUB_ACTION_PATH/rollback.sh"         "$HOST:$DEPLOY_PATH/rollback.sh"
+
+    # Seed persistent shared files from committed templates, but only if they do
+    # not already exist. Runs before finalize so the symlink targets are present.
+    - name: Seed shared files (first deploy only)
+      if: ${{ inputs.shared-seeds != '' }}
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        SCP: "scp -p -P ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        SHARED_SEEDS: ${{ inputs.shared-seeds }}
+      run: |
+        while IFS=: read -r dest src; do
+          [ -z "${dest:-}" ] && continue
+          target="$DEPLOY_PATH/shared/$dest"
+          if $SSH "$HOST" "test -e '$target'"; then
+            echo "shared/$dest already exists - leaving as-is"
+            continue
+          fi
+          if [ ! -f "$src" ]; then
+            echo "ERROR: seed source '$src' not found on runner"; exit 1
+          fi
+          $SSH "$HOST" "mkdir -p \"\$(dirname '$target')\""
+          $SCP "$src" "$HOST:$target"
+          echo "seeded shared/$dest from $src"
+        done <<< "$SHARED_SEEDS"
 
     - name: Finalize release (symlink shared, atomic flip, rotate)
       shell: bash
