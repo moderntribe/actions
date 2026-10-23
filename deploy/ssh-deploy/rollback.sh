@@ -26,7 +26,8 @@ echo "Releases (newest last):"
 list_releases | while read -r id; do
   marker=" "
   [ "$id" = "$CURRENT" ] && marker="*"
-  echo "  $marker $id"
+  rev=$(head -c 7 "$RELEASES/$id/REVISION" 2>/dev/null || true)
+  echo "  $marker $id ${rev:+($rev)}"
 done
 
 if [ -n "$TARGET" ]; then
