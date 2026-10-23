@@ -9,7 +9,7 @@
 #   4. atomically flips `current` to the new release (rename(2))
 #   5. rotates old releases, keeping the newest N
 #
-# Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases>
+# Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases> [revision]
 #   shared items ("src:dest" pairs, newline separated) are read from stdin.
 #
 # Requires GNU coreutils on the server (mv -T for the atomic flip, ln -sr for
@@ -19,6 +19,7 @@ set -euo pipefail
 DEPLOY_PATH=${1:?deploy-path required}
 RELEASE_ID=${2:?release-id required}
 KEEP=${3:-2}
+REVISION=${4:-}
 
 RELEASES="$DEPLOY_PATH/releases"
 SHARED="$DEPLOY_PATH/shared"
@@ -57,6 +58,9 @@ while IFS=: read -r src dest; do
   ln -srfn "$s" "$t"
   echo "linked $dest -> shared/$src"
 done
+
+# Record which commit this release was built from (shown by rollback.sh).
+[ -z "$REVISION" ] || printf '%s\n' "$REVISION" > "$NEW/REVISION"
 
 # --- 3. promote the finished release ---------------------------------------
 # The relative shared links keep working: the folder moves within releases/, so

@@ -132,6 +132,8 @@ runs:
         while IFS=: read -r _ dest; do
           if [ -n "${dest:-}" ]; then exclude_arg+=(--exclude="/$dest"); fi
         done <<< "$SHARED_ITEMS"
+        # REVISION is written on the server after the sync.
+        exclude_arg+=(--exclude=/REVISION)
 
         echo "### Deploy preview (vs current release)" >> "$GITHUB_STEP_SUMMARY"
         if ! $RSH "$HOST" "test -d '$DEPLOY_PATH/current'"; then
@@ -245,11 +247,12 @@ runs:
         DEPLOY_PATH: ${{ inputs.deploy-path }}
         RELEASE_ID: ${{ steps.gen.outputs.release-id }}
         KEEP: ${{ inputs.keep-releases }}
+        REVISION: ${{ github.sha }}
         SHARED_ITEMS: ${{ inputs.shared-items }}
       run: |
         # SHARED_ITEMS is passed on stdin so newlines survive the SSH boundary.
         printf '%s' "$SHARED_ITEMS" | $SSH "$HOST" \
-          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP'"
+          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION'"
 
     - name: Deployed
       shell: bash
