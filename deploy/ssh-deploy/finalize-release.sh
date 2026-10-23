@@ -4,12 +4,13 @@
 # into releases/<id>.tmp, so a failed or interrupted deploy never leaves a
 # half-built folder that looks like a release:
 #   1. ensures base dirs exist (first-deploy setup) and drops stale *.tmp folders
-#   2. symlinks persistent shared items into the release
+#   2. symlinks persistent shared items into the release, then runs the optional
+#      verify command inside it
 #   3. renames releases/<id>.tmp to releases/<id>
 #   4. atomically flips `current` to the new release (rename(2))
 #   5. rotates old releases, keeping the newest N
 #
-# Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases> [revision]
+# Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases> [revision] [verify-b64]
 #   shared items ("src:dest" pairs, newline separated) are read from stdin.
 #
 # Requires GNU coreutils on the server (mv -T for the atomic flip, ln -sr for
@@ -20,6 +21,7 @@ DEPLOY_PATH=${1:?deploy-path required}
 RELEASE_ID=${2:?release-id required}
 KEEP=${3:-2}
 REVISION=${4:-}
+VERIFY_B64=${5:-}
 
 RELEASES="$DEPLOY_PATH/releases"
 SHARED="$DEPLOY_PATH/shared"
@@ -62,6 +64,21 @@ done
 
 # Record which commit this release was built from (shown by rollback.sh).
 [ -z "$REVISION" ] || printf '%s\n' "$REVISION" > "$NEW/REVISION"
+
+# Optional caller-supplied check, run inside the release with its shared links in
+# place. Failing here leaves `current` untouched; the .tmp folder is kept for
+# inspection and removed by the next deploy.
+if [ -n "$VERIFY_B64" ]; then
+  echo "verifying release before it goes live"
+  verify_script=$(mktemp)
+  printf '%s' "$VERIFY_B64" | base64 -d > "$verify_script"
+  if ! ( cd "$NEW" && bash -e "$verify_script" < /dev/null ); then
+    rm -f "$verify_script"
+    echo "ERROR: verify-command failed; current is unchanged (release kept at $NEW)"
+    exit 1
+  fi
+  rm -f "$verify_script"
+fi
 
 # --- 3. promote the finished release ---------------------------------------
 # The relative shared links keep working: the folder moves within releases/, so

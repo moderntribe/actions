@@ -58,6 +58,13 @@ inputs:
       src only if it does not already exist on the server, so an operator-edited
       file is never overwritten by later deploys. Example:
         local-config.php:.deploy/config/local-config-deployssh.php
+  verify-command:
+    required: false
+    default: ""
+    description: >
+      Shell commands run ON THE SERVER inside the new release, after the shared
+      links are in place and before `current` is flipped. A non-zero exit aborts the
+      deploy and leaves `current` untouched. Example: wp core is-installed
   keep-releases:
     required: false
     default: "2"
@@ -248,11 +255,14 @@ runs:
         RELEASE_ID: ${{ steps.gen.outputs.release-id }}
         KEEP: ${{ inputs.keep-releases }}
         REVISION: ${{ github.sha }}
+        VERIFY: ${{ inputs.verify-command }}
         SHARED_ITEMS: ${{ inputs.shared-items }}
       run: |
+        # base64 keeps quotes and newlines in the command intact across SSH.
+        verify_b64=$(printf '%s' "$VERIFY" | base64 | tr -d '\n')
         # SHARED_ITEMS is passed on stdin so newlines survive the SSH boundary.
         printf '%s' "$SHARED_ITEMS" | $SSH "$HOST" \
-          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION'"
+          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION' '$verify_b64'"
 
     - name: Deployed
       shell: bash
