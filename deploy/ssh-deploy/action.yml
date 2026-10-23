@@ -93,7 +93,8 @@ runs:
         $SSH "$HOST" "mkdir -p '$DEPLOY_PATH/releases' '$DEPLOY_PATH/shared'"
 
     # Informational: shows what will be added / changed / removed versus the live
-    # release. --dry-run touches nothing on the server.
+    # release. --dry-run touches nothing on the server. Compares by checksum like
+    # the real sync, so only files whose content differs are listed.
     - name: Preview changes vs current release
       shell: bash
       env:
@@ -102,22 +103,54 @@ runs:
         DEPLOY_PATH: ${{ inputs.deploy-path }}
         SRC: ${{ inputs.source-dir }}
         EXCLUDE_FILE: ${{ inputs.exclude-file }}
+        SHARED_ITEMS: ${{ inputs.shared-items }}
       run: |
         exclude_arg=()
         [ -n "$EXCLUDE_FILE" ] && exclude_arg=(--exclude-from="$EXCLUDE_FILE")
 
+        # Shared items are symlinked into each release, not synced. Protect them
+        # from --delete so they are not reported as removals.
+        while IFS=: read -r _ dest; do
+          if [ -n "${dest:-}" ]; then exclude_arg+=(--exclude="/$dest"); fi
+        done <<< "$SHARED_ITEMS"
+
         echo "### Deploy preview (vs current release)" >> "$GITHUB_STEP_SUMMARY"
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-        if $RSH "$HOST" "test -d '$DEPLOY_PATH/current'"; then
-          rsync -rlpgoDzn --delete --itemize-changes \
-            -e "$RSH" "${exclude_arg[@]}" \
-            "${SRC%/}/" "$HOST:$DEPLOY_PATH/current/" \
-            | tee -a "$GITHUB_STEP_SUMMARY"
-        else
+        if ! $RSH "$HOST" "test -d '$DEPLOY_PATH/current'"; then
           echo "(first deploy - no current release to diff against)" \
             | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 0
         fi
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+        raw="$RUNNER_TEMP/preview.raw"
+        list="$RUNNER_TEMP/preview.txt"
+        rsync -rlpzn --checksum --delete --itemize-changes \
+          -e "$RSH" "${exclude_arg[@]}" \
+          "${SRC%/}/" "$HOST:$DEPLOY_PATH/current/" > "$raw"
+
+        # A = new file, M = changed, D = removed. Directory-only lines are noise.
+        awk '
+          /^\*deleting/ { p = $0; sub(/^\*deleting +/, "", p); if (p !~ /\/$/) print "D " p; next }
+          /^[<>ch.][fL]/ { p = substr($0, 13); print (substr($0, 3, 9) == "+++++++++" ? "A " : "M ") p }
+        ' "$raw" | sort -k2 > "$list"
+
+        added=$(grep -c '^A ' "$list" || true)
+        changed=$(grep -c '^M ' "$list" || true)
+        removed=$(grep -c '^D ' "$list" || true)
+        echo "$added added, $changed changed, $removed removed" \
+          | tee -a "$GITHUB_STEP_SUMMARY"
+
+        if [ -s "$list" ]; then
+          echo "Full list:"; cat "$list"
+          {
+            echo
+            echo "<details><summary>Changed paths (first 200)</summary>"
+            echo
+            echo '```'
+            head -n 200 "$list"
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
 
     - name: Rsync build into releases/${{ steps.gen.outputs.release-id }}
       shell: bash
