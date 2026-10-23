@@ -57,9 +57,13 @@ mv -Tf "$DEPLOY_PATH/current.tmp" "$DEPLOY_PATH/current"
 echo "current -> releases/$RELEASE_ID"
 
 # --- 4. rotate old releases ------------------------------------------------
-# Release dirs are machine timestamps (no spaces/newlines), so this is safe.
+# Release ids are UTC timestamps, so name order is age order. Modified time is
+# not: anything writing into a release changes it. Never prune the live release.
 cd "$RELEASES"
-ls -1dt */ 2>/dev/null | tail -n "+$((KEEP + 1))" | while read -r old; do
+LIVE=$(basename "$(readlink "$DEPLOY_PATH/current")")
+ls -1 | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}$' | sort -r \
+  | tail -n "+$((KEEP + 1))" | while read -r old; do
+  [ "$old" = "$LIVE" ] && continue
   echo "pruning old release $old"
-  rm -rf "${old%/}"
+  rm -rf "$old"
 done
