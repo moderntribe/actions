@@ -37,7 +37,8 @@ find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -name '*.tmp' ! -path "$NEW" \
 
 # --- 2. symlink shared items into the new release --------------------------
 # Each line is "src:dest". `src` is under $SHARED; `dest` is under the release.
-while IFS=: read -r src dest; do
+# `|| [ -n ... ]` keeps a final line that has no trailing newline.
+while IFS=: read -r src dest || [ -n "${src:-}" ]; do
   [ -z "${src:-}" ] && continue
   s="$SHARED/$src"
   t="$NEW/$dest"
