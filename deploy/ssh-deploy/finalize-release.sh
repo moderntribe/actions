@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 #
-# Runs ON THE SERVER. Finalizes a freshly-rsynced release:
-#   1. ensures base dirs exist (first-deploy setup)
+# Runs ON THE SERVER. Finalizes a freshly-rsynced release. The build is synced
+# into releases/<id>.tmp, so a failed or interrupted deploy never leaves a
+# half-built folder that looks like a release:
+#   1. ensures base dirs exist (first-deploy setup) and drops stale *.tmp folders
 #   2. symlinks persistent shared items into the release
-#   3. atomically flips `current` to the new release (rename(2))
-#   4. rotates old releases, keeping the newest N
+#   3. renames releases/<id>.tmp to releases/<id>
+#   4. atomically flips `current` to the new release (rename(2))
+#   5. rotates old releases, keeping the newest N
 #
 # Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases>
 #   shared items ("src:dest" pairs, newline separated) are read from stdin.
@@ -19,10 +22,17 @@ KEEP=${3:-2}
 
 RELEASES="$DEPLOY_PATH/releases"
 SHARED="$DEPLOY_PATH/shared"
-NEW="$RELEASES/$RELEASE_ID"
+NEW="$RELEASES/$RELEASE_ID.tmp"
+FINAL="$RELEASES/$RELEASE_ID"
 
 [ -d "$NEW" ] || { echo "ERROR: release $NEW not found (rsync did not run?)"; exit 1; }
+[ ! -e "$FINAL" ] || { echo "ERROR: release $FINAL already exists"; exit 1; }
 mkdir -p "$RELEASES" "$SHARED"
+
+# Leftovers from deploys that failed before this point. Deploys are serialized
+# per environment, so none of these can be in use.
+find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -name '*.tmp' ! -path "$NEW" \
+  -exec rm -rf {} + -exec echo "removed stale {}" \;
 
 # --- 2. symlink shared items into the new release --------------------------
 # Each line is "src:dest". `src` is under $SHARED; `dest` is under the release.
@@ -48,7 +58,13 @@ while IFS=: read -r src dest; do
   echo "linked $dest -> shared/$src"
 done
 
-# --- 3. atomic flip --------------------------------------------------------
+# --- 3. promote the finished release ---------------------------------------
+# The relative shared links keep working: the folder moves within releases/, so
+# the link depth is unchanged.
+mv -T "$NEW" "$FINAL"
+NEW="$FINAL"
+
+# --- 4. atomic flip --------------------------------------------------------
 # ln into a temp name then rename over `current`: readers never see a
 # half-built release, and the swap cannot leave `current` dangling.
 # -r keeps `current` a relative link (-> releases/<id>) so the tree is relocatable.
@@ -56,7 +72,7 @@ ln -srfn "$NEW" "$DEPLOY_PATH/current.tmp"
 mv -Tf "$DEPLOY_PATH/current.tmp" "$DEPLOY_PATH/current"
 echo "current -> releases/$RELEASE_ID"
 
-# --- 4. rotate old releases ------------------------------------------------
+# --- 5. rotate old releases ------------------------------------------------
 # Release ids are UTC timestamps, so name order is age order. Modified time is
 # not: anything writing into a release changes it. Never prune the live release.
 cd "$RELEASES"

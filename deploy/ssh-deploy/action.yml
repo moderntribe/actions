@@ -171,7 +171,7 @@ runs:
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 
-    - name: Rsync build into releases/${{ steps.gen.outputs.release-id }}
+    - name: Rsync build into releases/${{ steps.gen.outputs.release-id }}.tmp
       shell: bash
       env:
         RSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
@@ -192,7 +192,7 @@ runs:
         rsync -rlpz --checksum --delete \
           -e "$RSH" "${exclude_arg[@]}" \
           --link-dest="$DEPLOY_PATH/current/" \
-          "${SRC%/}/" "$HOST:$DEPLOY_PATH/releases/$RELEASE_ID/"
+          "${SRC%/}/" "$HOST:$DEPLOY_PATH/releases/$RELEASE_ID.tmp/"
 
     - name: Ship finalize + rollback scripts
       shell: bash
