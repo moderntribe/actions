@@ -169,9 +169,10 @@ runs:
           # Check and write in one SSH call so a dropped connection (255) is an
           # error, never mistaken for "file missing". Exit 3 = already exists.
           # noclobber makes the write itself refuse to replace a file, and
-          # umask 077 keeps credentials unreadable by other users.
+          # umask 027 makes the seeded file 640: no access for other users, but readable by
+          # the owner's group in case PHP-FPM runs as a different user.
           set +e
-          $SSH "$HOST" "[ -e '$target' ] && exit 3; mkdir -p \"\$(dirname '$target')\" && umask 077 && set -o noclobber && cat > '$target'" < "$src"
+          $SSH "$HOST" "[ -e '$target' ] && exit 3; mkdir -p \"\$(dirname '$target')\" && umask 027 && set -o noclobber && cat > '$target'" < "$src"
           rc=$?
           set -e
           case $rc in
