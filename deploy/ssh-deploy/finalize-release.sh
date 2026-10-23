@@ -42,6 +42,12 @@ find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -name '*.tmp' ! -path "$NEW" \
 # `|| [ -n ... ]` keeps a final line that has no trailing newline.
 while IFS=: read -r src dest || [ -n "${src:-}" ]; do
   [ -z "${src:-}" ] && continue
+
+  # `rm -rf "$t"` below must stay inside the release: an empty or absolute dest
+  # would resolve to the release root, and `..` would escape it.
+  case "$src" in /*|*..*) echo "ERROR: invalid shared source '$src' (absolute, or contains ..)"; exit 1 ;; esac
+  case "$dest" in ''|.|/*|*..*) echo "ERROR: invalid shared destination '$dest' for '$src' (empty, absolute, or contains ..)"; exit 1 ;; esac
+
   s="$SHARED/$src"
   t="$NEW/$dest"
 
