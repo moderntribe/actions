@@ -134,7 +134,10 @@ runs:
 
         # --link-dest hardlinks unchanged files from the live release (fast + cheap
         # storage). Harmless/no-op on the first deploy when current/ is absent.
-        rsync -rlpgoDz --delete \
+        # A fresh checkout gives every file a new mtime, so rsync's size+mtime check
+        # never matches; --checksum compares content so unchanged files do hardlink.
+        # No -o/-g/-D: the SSH user is not root, so they cannot be applied.
+        rsync -rlpz --checksum --delete \
           -e "$RSH" "${exclude_arg[@]}" \
           --link-dest="$DEPLOY_PATH/current/" \
           "${SRC%/}/" "$HOST:$DEPLOY_PATH/releases/$RELEASE_ID/"
