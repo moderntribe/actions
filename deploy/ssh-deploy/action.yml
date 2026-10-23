@@ -156,7 +156,6 @@ runs:
       shell: bash
       env:
         SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
-        SCP: "scp -p -P ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
         HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
         DEPLOY_PATH: ${{ inputs.deploy-path }}
         SHARED_SEEDS: ${{ inputs.shared-seeds }}
@@ -164,16 +163,22 @@ runs:
         while IFS=: read -r dest src; do
           [ -z "${dest:-}" ] && continue
           target="$DEPLOY_PATH/shared/$dest"
-          if $SSH "$HOST" "test -e '$target'"; then
-            echo "shared/$dest already exists - leaving as-is"
-            continue
-          fi
           if [ ! -f "$src" ]; then
             echo "ERROR: seed source '$src' not found on runner"; exit 1
           fi
-          $SSH "$HOST" "mkdir -p \"\$(dirname '$target')\""
-          $SCP "$src" "$HOST:$target"
-          echo "seeded shared/$dest from $src"
+          # Check and write in one SSH call so a dropped connection (255) is an
+          # error, never mistaken for "file missing". Exit 3 = already exists.
+          # noclobber makes the write itself refuse to replace a file, and
+          # umask 077 keeps credentials unreadable by other users.
+          set +e
+          $SSH "$HOST" "[ -e '$target' ] && exit 3; mkdir -p \"\$(dirname '$target')\" && umask 077 && set -o noclobber && cat > '$target'" < "$src"
+          rc=$?
+          set -e
+          case $rc in
+            0) echo "seeded shared/$dest from $src" ;;
+            3) echo "shared/$dest already exists - leaving as-is" ;;
+            *) echo "ERROR: seeding shared/$dest failed (exit $rc)"; exit "$rc" ;;
+          esac
         done <<< "$SHARED_SEEDS"
 
     - name: Finalize release (symlink shared, atomic flip, rotate)
