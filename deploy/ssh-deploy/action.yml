@@ -20,6 +20,14 @@ inputs:
     required: false
     default: "22"
     description: SSH port.
+  known-hosts:
+    required: false
+    default: ""
+    description: >
+      Pinned `known_hosts` line(s) for the server (`ssh-keyscan -t ed25519 <host>`
+      output, `[host]:port` form for a non-22 port). When set, it is written as-is
+      and the host key is never scanned, so a spoofed server is refused. When empty,
+      the key is fetched with ssh-keyscan on every run, which trusts whatever answers.
   deploy-path:
     required: true
     description: Absolute path on the server holding current/, releases/ and shared/.
@@ -63,20 +71,31 @@ outputs:
 runs:
   using: composite
   steps:
-    # Installs the private key at ~/.ssh/id_rsa and seeds known_hosts (port 22).
+    # Installs the private key at ~/.ssh/id_rsa. Only seeds known_hosts (port 22
+    # scan) when no pinned key was given.
     - name: Setup SSH key
       uses: moderntribe/actions/utils/ssh-agent@v1
       with:
         ssh_private_key: ${{ inputs.ssh-key }}
-        server: ${{ inputs.ssh-host }}
+        server: ${{ inputs.known-hosts == '' && inputs.ssh-host || '' }}
 
-    # Pin the host key for the actual port (utils/ssh-agent only scans 22).
-    - name: Pin host key for port ${{ inputs.ssh-port }}
+    - name: Pin host key
       shell: bash
+      env:
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        SSH_HOST: ${{ inputs.ssh-host }}
+        SSH_PORT: ${{ inputs.ssh-port }}
       run: |
         mkdir -p /home/runner/.ssh
-        ssh-keyscan -p "${{ inputs.ssh-port }}" -H "${{ inputs.ssh-host }}" \
-          >> /home/runner/.ssh/known_hosts 2>/dev/null || true
+        if [ -n "$KNOWN_HOSTS" ]; then
+          printf '%s\n' "$KNOWN_HOSTS" > /home/runner/.ssh/known_hosts
+          echo "Using the pinned host key."
+          exit 0
+        fi
+        echo "::warning::known-hosts is not set; trusting whatever host key $SSH_HOST presents."
+        ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> /home/runner/.ssh/known_hosts
+        [ -s /home/runner/.ssh/known_hosts ] \
+          || { echo "::error::no host key received from $SSH_HOST:$SSH_PORT"; exit 1; }
 
     - name: Generate release id
       id: gen
