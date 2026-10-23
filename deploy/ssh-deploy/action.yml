@@ -65,6 +65,14 @@ inputs:
       Shell commands run ON THE SERVER inside the new release, after the shared
       links are in place and before `current` is flipped. A non-zero exit aborts the
       deploy and leaves `current` untouched. Example: wp core is-installed
+  post-deploy-command:
+    required: false
+    default: ""
+    description: >
+      Shell commands run ON THE SERVER in `current` after it has been flipped to the
+      new release, for example flushing a cache: wp cache flush. The release is
+      already live by then, so a failure only raises a warning and never fails the
+      deploy.
   keep-releases:
     required: false
     default: "2"
@@ -263,6 +271,27 @@ runs:
         # SHARED_ITEMS is passed on stdin so newlines survive the SSH boundary.
         printf '%s' "$SHARED_ITEMS" | $SSH "$HOST" \
           "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION' '$verify_b64'"
+
+    # The release is already live here, so nothing in this step may fail the deploy.
+    - name: Post-deploy command
+      if: ${{ inputs.post-deploy-command != '' }}
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        POST_DEPLOY: ${{ inputs.post-deploy-command }}
+      run: |
+        # base64 keeps quotes and newlines intact across SSH. The script runs from a
+        # temp file so a command that reads stdin cannot consume it.
+        cmd_b64=$(printf '%s' "$POST_DEPLOY" | base64 | tr -d '\n')
+        set +e
+        $SSH "$HOST" "cd '$DEPLOY_PATH/current' && f=\$(mktemp) && printf '%s' '$cmd_b64' | base64 -d > \"\$f\" && { bash -e \"\$f\" < /dev/null; rc=\$?; rm -f \"\$f\"; exit \$rc; }"
+        rc=$?
+        set -e
+        if [ $rc -ne 0 ]; then
+          echo "::warning::post-deploy-command failed (exit $rc); the release is already live"
+        fi
 
     - name: Deployed
       shell: bash
