@@ -1,0 +1,300 @@
+name: 'ModernTribe - SSH Deploy (release directory)'
+description: >
+  Capistrano-style, SSH-based deploy. Rsyncs a build into a fresh
+  releases/<timestamp>/ on the server, symlinks persistent shared items into it,
+  atomically flips the `current` symlink, and rotates old releases. Every step is
+  visible in the GitHub Actions log (no server-side git hooks).
+author: 'moderntribe'
+
+inputs:
+  ssh-host:
+    required: true
+    description: Target server hostname or IP.
+  ssh-user:
+    required: true
+    description: SSH user.
+  ssh-key:
+    required: true
+    description: SSH private key (passphrase-less CI key).
+  ssh-port:
+    required: false
+    default: "22"
+    description: SSH port.
+  known-hosts:
+    required: false
+    default: ""
+    description: >
+      Pinned `known_hosts` line(s) for the server (`ssh-keyscan -t ed25519 <host>`
+      output, `[host]:port` form for a non-22 port). When set, it is written as-is
+      and the host key is never scanned, so a spoofed server is refused. When empty,
+      the key is fetched with ssh-keyscan on every run, which trusts whatever answers.
+  deploy-path:
+    required: true
+    description: Absolute path on the server holding current/, releases/ and shared/.
+  source-dir:
+    required: false
+    default: "."
+    description: Directory on the runner containing the built files to deploy.
+  exclude-file:
+    required: false
+    default: ""
+    description: Path (on the runner) to an rsync exclude file.
+  shared-items:
+    required: false
+    default: ""
+    description: >
+      Newline-separated `src:dest` pairs. `src` is relative to <deploy-path>/shared,
+      `dest` is relative to the release root. Each dest is replaced with a symlink to
+      the shared src (persistent, never overwritten). Example:
+        uploads:wp-content/uploads
+        local-config.php:local-config.php
+  shared-seeds:
+    required: false
+    default: ""
+    description: >
+      Newline-separated `dest:src` pairs used to seed persistent shared files on
+      the FIRST deploy only. `dest` is relative to <deploy-path>/shared, `src` is
+      a path on the runner (e.g. a committed template). Each dest is copied from
+      src only if it does not already exist on the server, so an operator-edited
+      file is never overwritten by later deploys. Example:
+        local-config.php:.deploy/config/local-config-deployssh.php
+  verify-command:
+    required: false
+    default: ""
+    description: >
+      Shell commands run ON THE SERVER inside the new release, after the shared
+      links are in place and before `current` is flipped. A non-zero exit aborts the
+      deploy and leaves `current` untouched. Example: wp core is-installed
+  post-deploy-command:
+    required: false
+    default: ""
+    description: >
+      Shell commands run ON THE SERVER in `current` after it has been flipped to the
+      new release, for example flushing a cache: wp cache flush. The release is
+      already live by then, so a failure only raises a warning and never fails the
+      deploy.
+  keep-releases:
+    required: false
+    default: "2"
+    description: Number of releases to retain (older ones are pruned).
+
+outputs:
+  release-id:
+    description: The timestamp id of the release that was deployed.
+    value: ${{ steps.gen.outputs.release-id }}
+
+runs:
+  using: composite
+  steps:
+    # Installs the private key at ~/.ssh/id_rsa. Only seeds known_hosts (port 22
+    # scan) when no pinned key was given.
+    - name: Setup SSH key
+      uses: moderntribe/actions/utils/ssh-agent@v1
+      with:
+        ssh_private_key: ${{ inputs.ssh-key }}
+        server: ${{ inputs.known-hosts == '' && inputs.ssh-host || '' }}
+
+    - name: Pin host key
+      shell: bash
+      env:
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        SSH_HOST: ${{ inputs.ssh-host }}
+        SSH_PORT: ${{ inputs.ssh-port }}
+      run: |
+        mkdir -p /home/runner/.ssh
+        if [ -n "$KNOWN_HOSTS" ]; then
+          printf '%s\n' "$KNOWN_HOSTS" > /home/runner/.ssh/known_hosts
+          echo "Using the pinned host key."
+          exit 0
+        fi
+        echo "::warning::known-hosts is not set; trusting whatever host key $SSH_HOST presents."
+        ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> /home/runner/.ssh/known_hosts
+        [ -s /home/runner/.ssh/known_hosts ] \
+          || { echo "::error::no host key received from $SSH_HOST:$SSH_PORT"; exit 1; }
+
+    - name: Generate release id
+      id: gen
+      shell: bash
+      run: echo "release-id=$(date -u +%Y-%m-%d_%H-%M-%S)" >> "$GITHUB_OUTPUT"
+
+    - name: Ensure base directories exist on server
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+      run: |
+        $SSH "$HOST" "mkdir -p '$DEPLOY_PATH/releases' '$DEPLOY_PATH/shared'"
+
+    # Informational: shows what will be added / changed / removed versus the live
+    # release. --dry-run touches nothing on the server. Compares by checksum like
+    # the real sync, so only files whose content differs are listed.
+    - name: Preview changes vs current release
+      shell: bash
+      env:
+        RSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        SRC: ${{ inputs.source-dir }}
+        EXCLUDE_FILE: ${{ inputs.exclude-file }}
+        SHARED_ITEMS: ${{ inputs.shared-items }}
+      run: |
+        exclude_arg=()
+        [ -n "$EXCLUDE_FILE" ] && exclude_arg=(--exclude-from="$EXCLUDE_FILE")
+
+        # Shared items are symlinked into each release, not synced. Protect them
+        # from --delete so they are not reported as removals.
+        while IFS=: read -r _ dest; do
+          if [ -n "${dest:-}" ]; then exclude_arg+=(--exclude="/$dest"); fi
+        done <<< "$SHARED_ITEMS"
+        # REVISION is written on the server after the sync.
+        exclude_arg+=(--exclude=/REVISION)
+
+        echo "### Deploy preview (vs current release)" >> "$GITHUB_STEP_SUMMARY"
+        if ! $RSH "$HOST" "test -d '$DEPLOY_PATH/current'"; then
+          echo "(first deploy - no current release to diff against)" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        raw="$RUNNER_TEMP/preview.raw"
+        list="$RUNNER_TEMP/preview.txt"
+        rsync -rlpzn --checksum --delete --itemize-changes \
+          -e "$RSH" "${exclude_arg[@]}" \
+          "${SRC%/}/" "$HOST:$DEPLOY_PATH/current/" > "$raw"
+
+        # A = new file, M = changed, D = removed. Directory-only lines are noise.
+        awk '
+          /^\*deleting/ { p = $0; sub(/^\*deleting +/, "", p); if (p !~ /\/$/) print "D " p; next }
+          /^[<>ch.][fL]/ { p = substr($0, 13); print (substr($0, 3, 9) == "+++++++++" ? "A " : "M ") p }
+        ' "$raw" | sort -k2 > "$list"
+
+        added=$(grep -c '^A ' "$list" || true)
+        changed=$(grep -c '^M ' "$list" || true)
+        removed=$(grep -c '^D ' "$list" || true)
+        echo "$added added, $changed changed, $removed removed" \
+          | tee -a "$GITHUB_STEP_SUMMARY"
+
+        if [ -s "$list" ]; then
+          echo "Full list:"; cat "$list"
+          {
+            echo
+            echo "<details><summary>Changed paths (first 200)</summary>"
+            echo
+            echo '```'
+            head -n 200 "$list"
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Rsync build into releases/${{ steps.gen.outputs.release-id }}.tmp
+      shell: bash
+      env:
+        RSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        SRC: ${{ inputs.source-dir }}
+        EXCLUDE_FILE: ${{ inputs.exclude-file }}
+        RELEASE_ID: ${{ steps.gen.outputs.release-id }}
+      run: |
+        exclude_arg=()
+        [ -n "$EXCLUDE_FILE" ] && exclude_arg=(--exclude-from="$EXCLUDE_FILE")
+
+        # --link-dest hardlinks unchanged files from the live release (fast + cheap
+        # storage). Harmless/no-op on the first deploy when current/ is absent.
+        # A fresh checkout gives every file a new mtime, so rsync's size+mtime check
+        # never matches; --checksum compares content so unchanged files do hardlink.
+        # No -o/-g/-D: the SSH user is not root, so they cannot be applied.
+        rsync -rlpz --checksum --delete \
+          -e "$RSH" "${exclude_arg[@]}" \
+          --link-dest="$DEPLOY_PATH/current/" \
+          "${SRC%/}/" "$HOST:$DEPLOY_PATH/releases/$RELEASE_ID.tmp/"
+
+    - name: Ship finalize + rollback scripts
+      shell: bash
+      env:
+        SCP: "scp -p -P ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+      run: |
+        $SCP "$GITHUB_ACTION_PATH/finalize-release.sh" "$HOST:$DEPLOY_PATH/finalize-release.sh"
+        $SCP "$GITHUB_ACTION_PATH/rollback.sh"         "$HOST:$DEPLOY_PATH/rollback.sh"
+
+    # Seed persistent shared files from committed templates, but only if they do
+    # not already exist. Runs before finalize so the symlink targets are present.
+    - name: Seed shared files (first deploy only)
+      if: ${{ inputs.shared-seeds != '' }}
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        SHARED_SEEDS: ${{ inputs.shared-seeds }}
+      run: |
+        while IFS=: read -r dest src; do
+          [ -z "${dest:-}" ] && continue
+          target="$DEPLOY_PATH/shared/$dest"
+          if [ ! -f "$src" ]; then
+            echo "ERROR: seed source '$src' not found on runner"; exit 1
+          fi
+          # Check and write in one SSH call so a dropped connection (255) is an
+          # error, never mistaken for "file missing". Exit 3 = already exists.
+          # noclobber makes the write itself refuse to replace a file, and
+          # umask 027 makes the seeded file 640: no access for other users, but readable by
+          # the owner's group in case PHP-FPM runs as a different user.
+          set +e
+          $SSH "$HOST" "[ -e '$target' ] && exit 3; mkdir -p \"\$(dirname '$target')\" && umask 027 && set -o noclobber && cat > '$target'" < "$src"
+          rc=$?
+          set -e
+          case $rc in
+            0) echo "seeded shared/$dest from $src" ;;
+            3) echo "shared/$dest already exists - leaving as-is" ;;
+            *) echo "ERROR: seeding shared/$dest failed (exit $rc)"; exit "$rc" ;;
+          esac
+        done <<< "$SHARED_SEEDS"
+
+    - name: Finalize release (symlink shared, atomic flip, rotate)
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        RELEASE_ID: ${{ steps.gen.outputs.release-id }}
+        KEEP: ${{ inputs.keep-releases }}
+        REVISION: ${{ github.sha }}
+        VERIFY: ${{ inputs.verify-command }}
+        SHARED_ITEMS: ${{ inputs.shared-items }}
+      run: |
+        # base64 keeps quotes and newlines in the command intact across SSH.
+        verify_b64=$(printf '%s' "$VERIFY" | base64 | tr -d '\n')
+        # SHARED_ITEMS is passed on stdin so newlines survive the SSH boundary.
+        printf '%s' "$SHARED_ITEMS" | $SSH "$HOST" \
+          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION' '$verify_b64'"
+
+    # The release is already live here, so nothing in this step may fail the deploy.
+    - name: Post-deploy command
+      if: ${{ inputs.post-deploy-command != '' }}
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        POST_DEPLOY: ${{ inputs.post-deploy-command }}
+      run: |
+        # base64 keeps quotes and newlines intact across SSH. The script runs from a
+        # temp file so a command that reads stdin cannot consume it.
+        cmd_b64=$(printf '%s' "$POST_DEPLOY" | base64 | tr -d '\n')
+        set +e
+        $SSH "$HOST" "cd '$DEPLOY_PATH/current' && f=\$(mktemp) && printf '%s' '$cmd_b64' | base64 -d > \"\$f\" && { bash -e \"\$f\" < /dev/null; rc=\$?; rm -f \"\$f\"; exit \$rc; }"
+        rc=$?
+        set -e
+        if [ $rc -ne 0 ]; then
+          echo "::warning::post-deploy-command failed (exit $rc); the release is already live"
+        fi
+
+    - name: Deployed
+      shell: bash
+      run: |
+        echo "Deployed release ${{ steps.gen.outputs.release-id }} -> ${{ inputs.deploy-path }}/current" \
+          >> "$GITHUB_STEP_SUMMARY"
