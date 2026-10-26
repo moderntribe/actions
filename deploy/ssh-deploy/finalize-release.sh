@@ -10,7 +10,8 @@
 #   4. atomically flips `current` to the new release (rename(2))
 #   5. rotates old releases, keeping the newest N
 #
-# Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases> [revision] [verify-b64]
+# Usage: finalize-release.sh <deploy-path> <release-id> <keep-releases> [revision] [verify-b64] [protect-id]
+#   protect-id is a release that rotation must not prune (the rollback target).
 #   shared items ("src:dest" pairs, newline separated) are read from stdin.
 #
 # Requires GNU coreutils on the server (mv -T for the atomic flip, ln -sr for
@@ -22,6 +23,7 @@ RELEASE_ID=${2:?release-id required}
 KEEP=${3:-2}
 REVISION=${4:-}
 VERIFY_B64=${5:-}
+PROTECT=${6:-}
 
 RELEASES="$DEPLOY_PATH/releases"
 SHARED="$DEPLOY_PATH/shared"
@@ -102,12 +104,14 @@ echo "current -> releases/$RELEASE_ID"
 
 # --- 5. rotate old releases ------------------------------------------------
 # Release ids are UTC timestamps, so name order is age order. Modified time is
-# not: anything writing into a release changes it. Never prune the live release.
+# not: anything writing into a release changes it. Never prune the live release
+# or the protected one.
 cd "$RELEASES"
 LIVE=$(basename "$(readlink "$DEPLOY_PATH/current")")
 ls -1 | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}$' | sort -r \
   | tail -n "+$((KEEP + 1))" | while read -r old; do
   [ "$old" = "$LIVE" ] && continue
+  [ -n "$PROTECT" ] && [ "$old" = "$PROTECT" ] && continue
   echo "pruning old release $old"
   rm -rf "$old"
 done
