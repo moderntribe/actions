@@ -73,6 +73,25 @@ inputs:
       new release, for example flushing a cache: wp cache flush. The release is
       already live by then, so a failure only raises a warning and never fails the
       deploy.
+  health-check-url:
+    required: false
+    default: ""
+    description: >
+      Public URL requested from the runner after the release is live (and after
+      post-deploy-command). It must answer 2xx, following redirects, within
+      health-check-timeout seconds. A failure fails the deploy; see
+      health-check-on-failure. Empty skips the check.
+  health-check-timeout:
+    required: false
+    default: "60"
+    description: Seconds to keep retrying the health check before it counts as failed.
+  health-check-on-failure:
+    required: false
+    default: "fail"
+    description: >
+      What to do when the health check fails: `fail` leaves the new release live and
+      fails the deploy, `rollback` first points `current` back at the release that
+      was live before this deploy (and reruns post-deploy-command), then fails.
   keep-releases:
     required: false
     default: "2"
@@ -254,6 +273,19 @@ runs:
           esac
         done <<< "$SHARED_SEEDS"
 
+    # Remembered so a failed health check can roll back. Empty on the first deploy.
+    - name: Note the release that is live now
+      id: prev
+      if: ${{ inputs.health-check-url != '' }}
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+      run: |
+        target=$($SSH "$HOST" "readlink '$DEPLOY_PATH/current' 2>/dev/null || true")
+        echo "release-id=$(basename "${target:-.}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}$' || true)" >> "$GITHUB_OUTPUT"
+
     - name: Finalize release (symlink shared, atomic flip, rotate)
       shell: bash
       env:
@@ -292,6 +324,57 @@ runs:
         if [ $rc -ne 0 ]; then
           echo "::warning::post-deploy-command failed (exit $rc); the release is already live"
         fi
+
+    - name: Health check
+      if: ${{ inputs.health-check-url != '' }}
+      shell: bash
+      env:
+        SSH: "ssh -p ${{ inputs.ssh-port }} -o StrictHostKeyChecking=yes"
+        HOST: "${{ inputs.ssh-user }}@${{ inputs.ssh-host }}"
+        DEPLOY_PATH: ${{ inputs.deploy-path }}
+        URL: ${{ inputs.health-check-url }}
+        TIMEOUT: ${{ inputs.health-check-timeout }}
+        ON_FAILURE: ${{ inputs.health-check-on-failure }}
+        PREVIOUS: ${{ steps.prev.outputs.release-id }}
+        POST_DEPLOY: ${{ inputs.post-deploy-command }}
+      run: |
+        [[ "$URL" =~ ^https?:// ]] || { echo "::error::health-check-url must start with http:// or https://"; exit 1; }
+        [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || { echo "::error::health-check-timeout must be a number of seconds"; exit 1; }
+        case "$ON_FAILURE" in fail|rollback) ;; *) echo "::error::health-check-on-failure must be fail or rollback"; exit 1 ;; esac
+
+        deadline=$((SECONDS + TIMEOUT))
+        while :; do
+          code=$(curl -s -L -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || true)
+          if [[ "$code" =~ ^2 ]]; then
+            echo "Health check passed: HTTP $code from $URL"
+            echo "Health check passed (HTTP $code)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "Health check: HTTP ${code:-000} from $URL"
+          [ "$SECONDS" -ge "$deadline" ] && break
+          sleep 5
+        done
+
+        echo "::error::Health check failed: $URL did not return 2xx within ${TIMEOUT}s (last HTTP ${code:-000})"
+        echo "Health check FAILED: last HTTP ${code:-000} from $URL." >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$ON_FAILURE" = rollback ]; then
+          if [ -z "$PREVIOUS" ]; then
+            echo "::error::no previous release to roll back to; the new release is still live"
+          else
+            echo "Rolling back to $PREVIOUS"
+            $SSH "$HOST" "bash '$DEPLOY_PATH/rollback.sh' '$DEPLOY_PATH' '$PREVIOUS'" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            # The new release may have cached data the older code cannot read.
+            if [ -n "$POST_DEPLOY" ]; then
+              cmd_b64=$(printf '%s' "$POST_DEPLOY" | base64 | tr -d '\n')
+              $SSH "$HOST" "cd '$DEPLOY_PATH/current' && f=\$(mktemp) && printf '%s' '$cmd_b64' | base64 -d > \"\$f\" && { bash -e \"\$f\" < /dev/null; rc=\$?; rm -f \"\$f\"; exit \$rc; }" \
+                || echo "::warning::post-deploy-command failed after the rollback"
+            fi
+            echo "Rolled back to $PREVIOUS after the failed health check." >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+        exit 1
 
     - name: Deployed
       shell: bash
