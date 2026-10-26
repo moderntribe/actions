@@ -297,12 +297,14 @@ runs:
         REVISION: ${{ github.sha }}
         VERIFY: ${{ inputs.verify-command }}
         SHARED_ITEMS: ${{ inputs.shared-items }}
+        # Rotation must not prune the release a failed health check rolls back to.
+        PROTECT: ${{ inputs.health-check-on-failure == 'rollback' && steps.prev.outputs.release-id || '' }}
       run: |
         # base64 keeps quotes and newlines in the command intact across SSH.
         verify_b64=$(printf '%s' "$VERIFY" | base64 | tr -d '\n')
         # SHARED_ITEMS is passed on stdin so newlines survive the SSH boundary.
         printf '%s' "$SHARED_ITEMS" | $SSH "$HOST" \
-          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION' '$verify_b64'"
+          "bash '$DEPLOY_PATH/finalize-release.sh' '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP' '$REVISION' '$verify_b64' '$PROTECT'"
 
     # The release is already live here, so nothing in this step may fail the deploy.
     - name: Post-deploy command
@@ -342,17 +344,30 @@ runs:
         [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || { echo "::error::health-check-timeout must be a number of seconds"; exit 1; }
         case "$ON_FAILURE" in fail|rollback) ;; *) echo "::error::health-check-on-failure must be fail or rollback"; exit 1 ;; esac
 
+        # Always one attempt; later attempts start only while time remains. Each
+        # request and each sleep is capped to the time left (at least 1s for a
+        # request), so nothing runs past the deadline. A pass needs curl to exit 0
+        # as well as a 2xx status: curl can print 200 and still fail on a stalled
+        # or truncated response.
         deadline=$((SECONDS + TIMEOUT))
+        attempt=0
         while :; do
-          code=$(curl -s -L -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || true)
-          if [[ "$code" =~ ^2 ]]; then
+          remaining=$((deadline - SECONDS))
+          [ "$attempt" -gt 0 ] && [ "$remaining" -le 0 ] && break
+          max=$(( remaining < 15 ? remaining : 15 ))
+          [ "$max" -ge 1 ] || max=1
+          attempt=$((attempt + 1))
+          rc=0
+          code=$(curl -s -L -o /dev/null -w '%{http_code}' --max-time "$max" "$URL") || rc=$?
+          if [ "$rc" -eq 0 ] && [[ "$code" =~ ^2 ]]; then
             echo "Health check passed: HTTP $code from $URL"
             echo "Health check passed (HTTP $code)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          echo "Health check: HTTP ${code:-000} from $URL"
-          [ "$SECONDS" -ge "$deadline" ] && break
-          sleep 5
+          echo "Health check: HTTP ${code:-000} (curl exit $rc) from $URL"
+          remaining=$((deadline - SECONDS))
+          [ "$remaining" -gt 0 ] || break
+          sleep $(( remaining < 5 ? remaining : 5 ))
         done
 
         echo "::error::Health check failed: $URL did not return 2xx within ${TIMEOUT}s (last HTTP ${code:-000})"
