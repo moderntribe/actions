@@ -35,7 +35,7 @@ runs:
       run: |
         echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       if: ${{ inputs.disable_cache == 'true' }}
       with:
         path: ${{ steps.composer-cache.outputs.dir }}
