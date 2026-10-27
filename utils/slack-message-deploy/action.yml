@@ -28,7 +28,7 @@ runs:
         run: echo "Status=${{ inputs.status }}"
 
       - name: Slack Success Notification
-        uses: slackapi/slack-github-action@v3
+        uses: slackapi/slack-github-action@v4
         if: ${{ inputs.status == 'success' }}
         with:
           webhook: ${{ inputs.slack_webhook_url }}
@@ -56,7 +56,7 @@ runs:
 
 
       - name: Slack Failure Notification
-        uses: slackapi/slack-github-action@v3
+        uses: slackapi/slack-github-action@v4
         if: ${{ inputs.status == 'failure' }}
         with:
           webhook: ${{ inputs.slack_webhook_url }}
@@ -83,7 +83,7 @@ runs:
             }
 
       - name: Slack Cancel Notification
-        uses: slackapi/slack-github-action@v3
+        uses: slackapi/slack-github-action@v4
         if: ${{ inputs.status == 'cancelled' }}
         with:
           webhook: ${{ inputs.slack_webhook_url }}
